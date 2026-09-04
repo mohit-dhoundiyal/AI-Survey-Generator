@@ -3,3 +3,7 @@ google-genai
 python-dotenv
 python-docx
 openpyxl
+streamlit-oauth
+google-api-python-client
+google-auth
+requests

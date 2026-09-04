@@ -1,2328 +1,1681 @@
-import os
+import io
 import json
+import os
 import re
-from io import BytesIO
 
 import streamlit as st
-import openpyxl
-
 from docx import Document
-from docx.table import Table
-from docx.text.paragraph import Paragraph
-
+from openpyxl import Workbook, load_workbook
 from dotenv import load_dotenv
+
 from google import genai
-
-from openpyxl import Workbook
-from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
-
-
-# =========================================================
-# CONFIGURATION
-# =========================================================
-
-load_dotenv()
-
-GEMINI_MODEL = "gemini-3.6-flash"
+from google.oauth2.credentials import Credentials
+from googleapiclient.discovery import build
+from streamlit_oauth import OAuth2Component
 
 
-# =========================================================
-# GEMINI SETUP
-# =========================================================
-
-api_key = os.getenv("GEMINI_API_KEY")
-
-if not api_key:
-    st.error(
-        "GEMINI_API_KEY not found. "
-        "Please check your .env file."
-    )
-    st.stop()
-
-client = genai.Client(
-    api_key=api_key
-)
-
-
-# =========================================================
+# ============================================================
 # PAGE CONFIG
-# =========================================================
+# ============================================================
 
 st.set_page_config(
     page_title="AI Survey Generator",
     page_icon="📋",
-    layout="wide"
+    layout="wide",
+    initial_sidebar_state="expanded"
 )
 
 
-# =========================================================
-# SESSION STATE
-# =========================================================
+# ============================================================
+# LIGHT STYLING (visual polish only — no logic here)
+# ============================================================
 
-if "questions" not in st.session_state:
-    st.session_state.questions = []
+st.markdown(
+    """
+    <style>
 
-if "files_analyzed" not in st.session_state:
-    st.session_state.files_analyzed = False
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap');
 
-if "agenda_text" not in st.session_state:
-    st.session_state.agenda_text = ""
+        html, body, [class*="css"] {
+            font-family: 'Poppins', sans-serif;
+        }
 
-if "example_info" not in st.session_state:
-    st.session_state.example_info = {
-        "columns": [],
-        "question_headers": [],
-        "sample_values": {}
+        .stApp {
+            background: linear-gradient(180deg, #F5F3FF 0%, #FDF4FF 45%, #FFF7ED 100%);
+        }
+
+        .block-container {
+            padding-top: 2rem;
+            padding-bottom: 3rem;
+            max-width: 1100px;
+        }
+
+        /* ---- Hero title banner ---- */
+        .hero-banner {
+            background: linear-gradient(120deg, #7C3AED 0%, #DB2777 55%, #F97316 100%);
+            padding: 28px 32px;
+            border-radius: 18px;
+            margin-bottom: 1.6rem;
+            box-shadow: 0 10px 30px rgba(124, 58, 237, 0.25);
+        }
+        .hero-banner h1 {
+            color: white !important;
+            margin: 0 0 6px 0;
+            font-weight: 700;
+        }
+        .hero-banner p {
+            color: rgba(255,255,255,0.92);
+            margin: 0;
+            font-size: 1.02rem;
+        }
+
+        /* ---- Section headers get a colored accent bar ---- */
+        h3 {
+            border-left: 6px solid #A855F7;
+            padding-left: 12px;
+            border-radius: 3px;
+        }
+
+        /* ---- Cards / containers / expanders ---- */
+        div[data-testid="stExpander"] {
+            border: 1px solid #E9D5FF;
+            border-radius: 14px;
+            background: linear-gradient(135deg, #FFFFFF 0%, #FAF5FF 100%);
+            box-shadow: 0 2px 10px rgba(168, 85, 247, 0.08);
+            margin-bottom: 10px;
+        }
+        div[data-testid="stExpander"] details summary p {
+            font-size: 1.02rem;
+            font-weight: 600;
+            color: #6D28D9;
+        }
+        div[data-testid="stVerticalBlockBorderWrapper"] {
+            border-radius: 14px !important;
+        }
+
+        /* ---- Give bordered containers (upload cards) real breathing room ---- */
+        div[data-testid="stVerticalBlock"] div[data-testid="stVerticalBlockBorderWrapper"] > div {
+            padding: 22px 24px;
+        }
+
+        /* ---- Wider gutter between side-by-side columns ---- */
+        div[data-testid="stHorizontalBlock"] {
+            gap: 2.2rem;
+        }
+
+        /* ---- Buttons: colorful gradient ---- */
+        .stButton>button {
+            border-radius: 10px;
+            border: none;
+            background: linear-gradient(90deg, #7C3AED, #DB2777);
+            color: white;
+            font-weight: 600;
+            transition: transform 0.15s ease, box-shadow 0.15s ease;
+        }
+        .stButton>button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 16px rgba(219, 39, 119, 0.35);
+            color: white;
+        }
+        .stButton>button p {
+            color: white !important;
+        }
+
+        .stDownloadButton>button {
+            border-radius: 10px;
+            border: none;
+            background: linear-gradient(90deg, #F59E0B, #F97316);
+            color: white;
+            font-weight: 600;
+        }
+        .stDownloadButton>button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 16px rgba(249, 115, 22, 0.35);
+            color: white;
+        }
+        .stDownloadButton>button p {
+            color: white !important;
+        }
+
+        /* ---- Sidebar ---- */
+        section[data-testid="stSidebar"] {
+            background: linear-gradient(180deg, #4C1D95 0%, #831843 100%);
+        }
+        section[data-testid="stSidebar"] * {
+            color: #F3E8FF !important;
+        }
+        section[data-testid="stSidebar"] hr {
+            border-color: rgba(255,255,255,0.25);
+        }
+
+        /* ---- Progress step pills ---- */
+        .step-pill {
+            display: inline-block;
+            padding: 3px 12px;
+            border-radius: 999px;
+            font-size: 0.78rem;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+        .step-done { background-color: #34D399; color: #052E16; }
+        .step-current { background-color: #FBBF24; color: #451A03; }
+        .step-todo { background-color: rgba(255,255,255,0.15); color: #F3E8FF; }
+
+        /* ---- Metric ---- */
+        div[data-testid="stMetric"] {
+            background: rgba(255,255,255,0.12);
+            border-radius: 12px;
+            padding: 10px;
+        }
+
+        /* ---- Tags for question type ---- */
+        .qtype-tag {
+            display: inline-block;
+            padding: 2px 10px;
+            border-radius: 999px;
+            font-size: 0.72rem;
+            font-weight: 700;
+            margin-left: 8px;
+        }
+        .qtype-mc { background-color: #DBEAFE; color: #1E40AF; }
+        .qtype-short { background-color: #FCE7F3; color: #9D174D; }
+        .qtype-para { background-color: #FEF3C7; color: #92400E; }
+
+    </style>
+    """,
+    unsafe_allow_html=True
+)
+
+
+# ============================================================
+# CONSTANTS
+# ============================================================
+
+RATING_OPTIONS = [
+    "Excellent",
+    "Very Good",
+    "Good",
+    "Fair",
+    "Poor"
+]
+
+FORMS_SCOPE = "https://www.googleapis.com/auth/forms.body"
+
+FIXED_PARTICIPANT_QUESTIONS = [
+    {
+        "section": "Participant Information",
+        "session_no": "",
+        "session": "",
+        "category": "Participant Information",
+        "question": "Full Name",
+        "question_type": "Short Answer",
+        "options": [],
+        "required": True
+    },
+    {
+        "section": "Participant Information",
+        "session_no": "",
+        "session": "",
+        "category": "Participant Information",
+        "question": "Designation",
+        "question_type": "Short Answer",
+        "options": [],
+        "required": True
+    },
+    {
+        "section": "Participant Information",
+        "session_no": "",
+        "session": "",
+        "category": "Participant Information",
+        "question": "Organisation/Department",
+        "question_type": "Short Answer",
+        "options": [],
+        "required": True
     }
+]
 
 
-# =========================================================
-# DOCX READER
-# =========================================================
+# ============================================================
+# GEMINI CLIENT
+# ============================================================
 
-def iter_docx_blocks(parent):
-    """
-    Read paragraphs and tables in the order
-    they appear in the DOCX.
-    """
+def get_gemini_client():
+    api_key = None
 
-    body = parent.element.body
+    # Streamlit Cloud / Streamlit secrets
+    try:
+        api_key = st.secrets.get("GEMINI_API_KEY")
+    except Exception:
+        pass
 
-    for child in body.iterchildren():
+    # Local .env
+    if not api_key:
+        load_dotenv()
+        api_key = os.getenv("GEMINI_API_KEY")
 
-        if child.tag.endswith("}p"):
-            yield Paragraph(child, parent)
+    if not api_key:
+        raise ValueError(
+            "GEMINI_API_KEY was not found. "
+            "Add it to your .env file for local use."
+        )
 
-        elif child.tag.endswith("}tbl"):
-            yield Table(child, parent)
+    return genai.Client(api_key=api_key)
 
+
+# ============================================================
+# DOCX EXTRACTION
+# ============================================================
 
 def extract_docx_text(uploaded_file):
+    uploaded_file.seek(0)
 
     document = Document(uploaded_file)
 
-    lines = []
+    parts = []
 
-    for block in iter_docx_blocks(document):
+    # Normal paragraphs
+    for paragraph in document.paragraphs:
+        text = paragraph.text.strip()
 
-        # -------------------------------------------------
-        # Paragraph
-        # -------------------------------------------------
+        if text:
+            parts.append(text)
 
-        if isinstance(block, Paragraph):
+    # Tables
+    for table in document.tables:
 
-            text = block.text.strip()
+        for row in table.rows:
 
-            if text:
-                lines.append(text)
+            cells = []
 
-        # -------------------------------------------------
-        # Table
-        # -------------------------------------------------
+            for cell in row.cells:
+                cell_text = cell.text.strip()
 
-        elif isinstance(block, Table):
-
-            for row in block.rows:
-
-                cells = []
-
-                for cell in row.cells:
-
-                    cell_parts = []
-
-                    for paragraph in cell.paragraphs:
-
-                        text = paragraph.text.strip()
-
-                        if text:
-                            cell_parts.append(text)
-
-                    cell_text = " ".join(cell_parts)
-
-                    cell_text = re.sub(
-                        r"\s+",
-                        " ",
-                        cell_text
-                    )
-
+                if cell_text:
                     cells.append(cell_text)
 
-                if any(cells):
+            if cells:
+                parts.append(" | ".join(cells))
 
-                    lines.append(
-                        " | ".join(cells)
-                    )
-
-    return "\n".join(lines)
+    return "\n".join(parts)
 
 
-# =========================================================
-# EXAMPLE XLSX READER
-# =========================================================
+# ============================================================
+# XLSX EXTRACTION
+# ============================================================
 
-def extract_example_form(uploaded_file):
-
+def extract_xlsx_text(uploaded_file):
     uploaded_file.seek(0)
 
-    workbook = openpyxl.load_workbook(
+    workbook = load_workbook(
         uploaded_file,
         data_only=True
     )
 
-    result = {
-        "columns": [],
-        "question_headers": [],
-        "sample_values": {}
-    }
+    parts = []
 
-    for sheet_name in workbook.sheetnames:
+    for worksheet in workbook.worksheets:
 
-        sheet = workbook[sheet_name]
-
-        rows = list(
-            sheet.iter_rows(
-                values_only=True
-            )
+        parts.append(
+            f"Sheet: {worksheet.title}"
         )
 
-        if not rows:
-            continue
-
-        headers = []
-
-        for value in rows[0]:
-
-            if value is not None:
-
-                text = str(value).strip()
-
-                if text:
-                    headers.append(text)
-
-        if not result["columns"]:
-            result["columns"] = headers
-
-        # -------------------------------------------------
-        # Detect question-related columns
-        # -------------------------------------------------
-
-        for header in headers:
-
-            lower_header = header.lower()
-
-            if (
-                lower_header.startswith("q")
-                or "rate" in lower_header
-                or "suggest" in lower_header
-                or "feedback" in lower_header
-            ):
-
-                if header not in result["question_headers"]:
-                    result["question_headers"].append(
-                        header
-                    )
-
-        # -------------------------------------------------
-        # Read sample answers
-        # -------------------------------------------------
-
-        for col_index, header in enumerate(
-            rows[0]
+        for row in worksheet.iter_rows(
+            values_only=True
         ):
-
-            if not header:
-                continue
-
-            header = str(header).strip()
 
             values = []
 
-            for row in rows[1:15]:
-
-                if col_index >= len(row):
-                    continue
-
-                value = row[col_index]
+            for value in row:
 
                 if value is not None:
-
-                    value = str(value).strip()
-
-                    if (
-                        value
-                        and value not in values
-                    ):
-                        values.append(value)
+                    values.append(
+                        str(value).strip()
+                    )
 
             if values:
-
-                result["sample_values"][header] = (
-                    values[:10]
+                parts.append(
+                    " | ".join(values)
                 )
 
-    return result
+    return "\n".join(parts)
 
 
-# =========================================================
-# BUILD EXAMPLE-FORM INSTRUCTION
-# =========================================================
+# ============================================================
+# EXAMPLE FORM INSTRUCTION
+# ============================================================
 
-def build_example_instruction(example_info):
+def build_example_instruction(example_text):
 
-    question_headers = example_info.get(
-        "question_headers",
-        []
-    )
-
-    sample_values = example_info.get(
-        "sample_values",
-        {}
-    )
-
-    # No example provided
-    if not question_headers:
+    if not example_text.strip():
 
         return """
 No example feedback form was provided.
 
-Use the application's default professional survey style:
-
-- Short Answer for participant information
-- Multiple Choice for session evaluation
-- Options:
-  Excellent
-  Very Good
-  Good
-  Fair
-  Poor
-- One overall workshop rating
-- One optional paragraph suggestions question
+Use a professional workshop feedback style.
 """
-
-    question_style = "\n".join(
-        f"- {question}"
-        for question in question_headers
-    )
-
-    sample_values_json = json.dumps(
-        sample_values,
-        ensure_ascii=False,
-        indent=2
-    )
 
     return f"""
-An example feedback form was provided.
+An existing feedback form has been provided only as a
+STYLE AND STRUCTURE REFERENCE.
 
-Use it ONLY as a reference for:
-- wording style
-- response style
-- professionalism
-- survey structure
+Use it to understand:
+- professional wording
+- rating style
+- feedback structure
+- overall presentation
 
-Example question styles:
+Do NOT copy participant information questions.
+Do NOT copy questions blindly.
+The workshop agenda is the PRIMARY source.
 
-{question_style}
+Example feedback form:
 
-Sample response values:
-
-{sample_values_json}
-
-Do NOT copy questions from the example.
-The new questions must be based on the uploaded agenda.
+-------------------------
+{example_text}
+-------------------------
 """
 
 
-# =========================================================
-# GEMINI - GENERATE SESSION QUESTIONS
-# =========================================================
+# ============================================================
+# GENERATE SURVEY USING GEMINI
+# ============================================================
 
 def generate_feedback_form(
     agenda_text,
-    example_info
+    example_text=""
 ):
 
-    example_instruction = (
-        build_example_instruction(
-            example_info
-        )
+    client = get_gemini_client()
+
+    example_instruction = build_example_instruction(
+        example_text
     )
 
     prompt = f"""
-You are an expert professional survey designer.
+You are an expert workshop feedback survey designer.
 
-Your task is to create ONE complete workshop feedback
-survey from the workshop agenda below.
+Create ONE complete feedback survey from the workshop agenda.
 
-========================================================
-WORKSHOP AGENDA
-========================================================
+IMPORTANT RULES:
 
+1. DO NOT generate these participant-information questions:
+   - Full Name
+   - Designation
+   - Organisation/Department
+
+   The application adds those separately.
+
+2. Identify EVERY actual SESSION in the agenda.
+
+3. Create EXACTLY ONE feedback question for EACH session.
+
+4. Preserve the original session order.
+
+5. Preserve the session number.
+
+6. Preserve the session title/name.
+
+7. Each session question must be specifically related to:
+   - the session title
+   - topics covered
+   - activities
+   - practical work
+   - tools or concepts covered
+
+8. Avoid generic questions such as:
+   "How satisfied were you with the session?"
+
+   Instead, ask about the actual learning/content of that session.
+
+9. Every session question must be:
+   Multiple Choice
+
+10. Every session question must contain EXACTLY these options:
+
+   Excellent
+   Very Good
+   Good
+   Fair
+   Poor
+
+11. Every session question must be required.
+
+12. Do NOT create more than one question per session.
+
+13. Do NOT invent sessions.
+
+14. After all session questions, create EXACTLY ONE overall workshop rating:
+
+   Question:
+   How would you rate the overall workshop?
+
+   Type:
+   Multiple Choice
+
+   Options:
+   Excellent
+   Very Good
+   Good
+   Fair
+   Poor
+
+   Required:
+   true
+
+15. After the overall rating, create EXACTLY ONE suggestions question:
+
+   Question:
+   Please provide your suggestions for improving future workshops.
+
+   Type:
+   Paragraph
+
+   Required:
+   false
+
+16. Return ONLY valid JSON.
+
+Use this JSON structure:
+
+{{
+    "questions": [
+        {{
+            "section": "Day 1",
+            "session_no": "1",
+            "session": "Session title",
+            "category": "Session Feedback",
+            "question": "Specific session-based feedback question",
+            "question_type": "Multiple Choice",
+            "options": [
+                "Excellent",
+                "Very Good",
+                "Good",
+                "Fair",
+                "Poor"
+            ],
+            "required": true
+        }}
+    ]
+}}
+
+Workshop agenda:
+
+-------------------------
 {agenda_text}
-
-========================================================
-EXAMPLE FEEDBACK FORM
-========================================================
+-------------------------
 
 {example_instruction}
-
-========================================================
-FIXED PARTICIPANT INFORMATION
-========================================================
-
-The application will automatically add these three
-questions BEFORE all other questions:
-
-1. Full Name
-2. Designation
-3. Organisation/Department
-
-DO NOT generate these questions.
-
-========================================================
-SESSION FEEDBACK
-========================================================
-
-Analyze the entire agenda carefully.
-
-Identify EVERY actual session in the agenda.
-
-For EVERY actual session:
-
-- Create EXACTLY ONE feedback question.
-- Keep the sessions in the same order as the agenda.
-- Use the actual session number.
-- Use the actual session title.
-- Use the actual session details/topics.
-- Use the speaker only if clearly provided.
-- Do not merge separate sessions.
-- Do not skip sessions.
-- Do not invent sessions.
-- Do not create separate questions for every subtopic.
-
-The question should evaluate the usefulness and/or
-quality of that specific session while clearly reflecting
-what was actually covered.
-
-BAD QUESTION:
-
-"How satisfied were you with the session?"
-
-GOOD QUESTION:
-
-"How would you rate the usefulness and delivery of the
-Data Preparation using Excel session, particularly its
-coverage of data structuring, tables, sorting, filtering
-and data validation?"
-
-Every session question must be:
-
-Type:
-Multiple Choice
-
-Options exactly:
-
-Excellent
-Very Good
-Good
-Fair
-Poor
-
-Required:
-Yes
-
-========================================================
-OVERALL WORKSHOP
-========================================================
-
-Create exactly ONE overall question:
-
-"How would you rate the overall workshop?"
-
-Type:
-Multiple Choice
-
-Options:
-
-Excellent
-Very Good
-Good
-Fair
-Poor
-
-Required:
-Yes
-
-========================================================
-SUGGESTIONS
-========================================================
-
-Create exactly ONE final question:
-
-"Please provide your suggestions for improving future
-workshops."
-
-Type:
-Paragraph
-
-Required:
-No
-
-========================================================
-FINAL ORDER
-========================================================
-
-The generated AI questions must appear in this order:
-
-Session 1
-Session 2
-Session 3
-...
-Last Session
-Overall Workshop
-Suggestions
-
-The application itself will insert the first three
-participant questions before these.
-
-Return ONLY JSON.
 """
 
-    schema = {
-        "type": "ARRAY",
-        "items": {
-            "type": "OBJECT",
-            "properties": {
-
-                "section": {
-                    "type": "STRING",
-                    "enum": [
-                        "Session Feedback",
-                        "Overall Feedback",
-                        "Suggestions"
-                    ]
-                },
-
-                "session_number": {
-                    "type": "STRING"
-                },
-
-                "session_name": {
-                    "type": "STRING"
-                },
-
-                "question": {
-                    "type": "STRING"
-                },
-
-                "type": {
-                    "type": "STRING",
-                    "enum": [
-                        "Multiple Choice",
-                        "Paragraph"
-                    ]
-                },
-
-                "options": {
-                    "type": "ARRAY",
-                    "items": {
-                        "type": "STRING"
-                    }
-                },
-
-                "category": {
-                    "type": "STRING"
-                },
-
-                "required": {
-                    "type": "BOOLEAN"
-                }
-            },
-
-            "required": [
-                "section",
-                "session_number",
-                "session_name",
-                "question",
-                "type",
-                "options",
-                "category",
-                "required"
-            ]
-        }
-    }
-
     response = client.models.generate_content(
-        model=GEMINI_MODEL,
-        contents=prompt,
-        config={
-            "response_mime_type": "application/json",
-            "response_json_schema": schema
-        }
+        model="gemini-3.6-flash",
+        contents=prompt
     )
 
-    generated = json.loads(
-        response.text
+    response_text = response.text.strip()
+
+    # Remove markdown fences if Gemini returns them
+    response_text = re.sub(
+        r"^```json\s*",
+        "",
+        response_text,
+        flags=re.IGNORECASE
     )
 
-    return normalize_questions(
-        generated
+    response_text = re.sub(
+        r"^```\s*",
+        "",
+        response_text
     )
 
+    response_text = re.sub(
+        r"\s*```$",
+        "",
+        response_text
+    )
 
-# =========================================================
-# NORMALIZE AI OUTPUT
-# =========================================================
+    parsed = json.loads(response_text)
 
-def normalize_questions(
-    questions
-):
-
-    normalized = []
-
-    # =====================================================
-    # FIRST 3 QUESTIONS
-    # Added ONLY here.
-    # =====================================================
-
-    normalized.append({
-
-        "section":
-            "Participant Information",
-
-        "session_number":
-            "",
-
-        "session_name":
-            "",
-
-        "question":
-            "Full Name",
-
-        "type":
-            "Short Answer",
-
-        "options":
-            [],
-
-        "category":
-            "Participant Information",
-
-        "required":
-            True
-
-    })
+    return parsed.get("questions", [])
 
 
-    normalized.append({
+# ============================================================
+# NORMALIZE QUESTIONS
+# ============================================================
 
-        "section":
-            "Participant Information",
+def normalize_questions(ai_questions):
 
-        "session_number":
-            "",
+    final_questions = []
 
-        "session_name":
-            "",
+    # --------------------------------------------------------
+    # Add fixed participant questions exactly once
+    # --------------------------------------------------------
 
-        "question":
-            "Designation",
+    for fixed_question in FIXED_PARTICIPANT_QUESTIONS:
 
-        "type":
-            "Short Answer",
+        final_questions.append(
+            fixed_question.copy()
+        )
 
-        "options":
-            [],
+    # --------------------------------------------------------
+    # Add AI-generated questions
+    # --------------------------------------------------------
 
-        "category":
-            "Participant Information",
+    for item in ai_questions:
 
-        "required":
-            True
+        if not isinstance(item, dict):
+            continue
 
-    })
+        question_text = str(
+            item.get("question", "")
+        ).strip()
 
+        if not question_text:
+            continue
 
-    normalized.append({
+        lower_question = question_text.lower()
 
-        "section":
-            "Participant Information",
+        # Prevent AI from creating participant questions
+        blocked_terms = [
+            "full name",
+            "designation",
+            "organisation/department",
+            "organization/department"
+        ]
 
-        "session_number":
-            "",
-
-        "session_name":
-            "",
-
-        "question":
-            "Organisation/Department",
-
-        "type":
-            "Short Answer",
-
-        "options":
-            [],
-
-        "category":
-            "Participant Information",
-
-        "required":
-            True
-
-    })
-
-
-    # =====================================================
-    # ADD AI QUESTIONS
-    # =====================================================
-
-    for item in questions:
-
-        if not isinstance(
-            item,
-            dict
+        if any(
+            term in lower_question
+            for term in blocked_terms
         ):
             continue
 
-        question = str(
+        question_type = str(
             item.get(
-                "question",
-                ""
+                "question_type",
+                "Multiple Choice"
             )
         ).strip()
 
-        if not question:
-            continue
+        if question_type == "Multiple Choice":
 
-        # -------------------------------------------------
-        # Prevent participant-question duplication
-        # -------------------------------------------------
-
-        if item.get("section") == (
-            "Participant Information"
-        ):
-            continue
-
-
-        # -------------------------------------------------
-        # Prevent exact duplicate wording
-        # -------------------------------------------------
-
-        question_lower = (
-            question.lower().strip()
-        )
-
-        existing = [
-
-            q["question"]
-            .lower()
-            .strip()
-
-            for q in normalized
-
-        ]
-
-
-        if question_lower in existing:
-            continue
-
-
-        # -------------------------------------------------
-        # Question type and options
-        # -------------------------------------------------
-
-        question_type = item.get(
-            "type",
-            "Multiple Choice"
-        )
-
-
-        if question_type == (
-            "Multiple Choice"
-        ):
-
-            options = [
-
-                "Excellent",
-                "Very Good",
-                "Good",
-                "Fair",
-                "Poor"
-
-            ]
-
-        elif question_type == (
-            "Paragraph"
-        ):
-
-            options = []
+            options = RATING_OPTIONS.copy()
 
         else:
 
-            question_type = (
-                "Multiple Choice"
+            raw_options = item.get(
+                "options",
+                []
             )
 
-            options = [
+            if isinstance(raw_options, list):
+                options = raw_options
+            else:
+                options = []
 
-                "Excellent",
-                "Very Good",
-                "Good",
-                "Fair",
-                "Poor"
+        normalized_item = {
+            "section": str(
+                item.get("section", "")
+            ).strip(),
 
-            ]
+            "session_no": str(
+                item.get("session_no", "")
+            ).strip(),
 
+            "session": str(
+                item.get("session", "")
+            ).strip(),
 
-        normalized.append({
-
-            "section":
-                item.get(
-                    "section",
-                    "Session Feedback"
-                ),
-
-            "session_number":
-                item.get(
-                    "session_number",
-                    ""
-                ),
-
-            "session_name":
-                item.get(
-                    "session_name",
-                    ""
-                ),
-
-            "question":
-                question,
-
-            "type":
-                question_type,
-
-            "options":
-                options,
-
-            "category":
+            "category": str(
                 item.get(
                     "category",
-                    "General"
-                ),
-
-            "required":
-                item.get(
-                    "required",
-                    True
+                    "Session Feedback"
                 )
+            ).strip(),
 
-        })
+            "question": question_text,
+
+            "question_type": question_type,
+
+            "options": options,
+
+            "required": bool(
+                item.get("required", True)
+            )
+        }
+
+        final_questions.append(
+            normalized_item
+        )
+
+    # --------------------------------------------------------
+    # Overall workshop rating
+    # --------------------------------------------------------
+
+    overall_text = (
+        "How would you rate the overall workshop?"
+    )
+
+    overall_exists = any(
+        str(q.get("question", "")).strip().lower()
+        == overall_text.lower()
+        for q in final_questions
+    )
+
+    if not overall_exists:
+
+        final_questions.append(
+            {
+                "section": "Overall Feedback",
+                "session_no": "",
+                "session": "",
+                "category": "Overall Workshop Rating",
+                "question": overall_text,
+                "question_type": "Multiple Choice",
+                "options": RATING_OPTIONS.copy(),
+                "required": True
+            }
+        )
+
+    # --------------------------------------------------------
+    # Suggestions
+    # --------------------------------------------------------
+
+    suggestions_text = (
+        "Please provide your suggestions for improving future workshops."
+    )
+
+    suggestions_exists = any(
+        str(q.get("question", "")).strip().lower()
+        == suggestions_text.lower()
+        for q in final_questions
+    )
+
+    if not suggestions_exists:
+
+        final_questions.append(
+            {
+                "section": "Overall Feedback",
+                "session_no": "",
+                "session": "",
+                "category": "Suggestions",
+                "question": suggestions_text,
+                "question_type": "Paragraph",
+                "options": [],
+                "required": False
+            }
+        )
+
+    return final_questions
 
 
-    return normalized
+# ============================================================
+# EXCEL CREATION
+# ============================================================
 
-
-# =========================================================
-# CREATE FINAL EXCEL
-# =========================================================
-
-def create_excel(
-    questions
-):
+def create_excel(questions):
 
     workbook = Workbook()
 
-    ws = workbook.active
-
-    ws.title = "Feedback Form"
-
-
-    # =====================================================
-    # HEADERS
-    # =====================================================
+    worksheet = workbook.active
+    worksheet.title = "Feedback Form"
 
     headers = [
-
         "No.",
-
         "Section",
-
         "Session No.",
-
         "Session",
-
         "Category",
-
         "Question",
-
         "Question Type",
-
         "Options",
-
         "Required"
-
     ]
 
+    worksheet.append(headers)
 
-    ws.append(
-        headers
-    )
-
-
-    # =====================================================
-    # HEADER STYLE
-    # =====================================================
-
-    header_fill = PatternFill(
-        fill_type="solid",
-        fgColor="1F4E78"
-    )
-
-
-    header_font = Font(
-        color="FFFFFF",
-        bold=True
-    )
-
-
-    border = Border(
-
-        left=Side(
-            style="thin",
-            color="D9E1F2"
-        ),
-
-        right=Side(
-            style="thin",
-            color="D9E1F2"
-        ),
-
-        top=Side(
-            style="thin",
-            color="D9E1F2"
-        ),
-
-        bottom=Side(
-            style="thin",
-            color="D9E1F2"
-        )
-
-    )
-
-
-    for cell in ws[1]:
-
-        cell.fill = header_fill
-
-        cell.font = header_font
-
-        cell.alignment = Alignment(
-
-            horizontal="center",
-
-            vertical="center"
-
-        )
-
-        cell.border = border
-
-
-    # =====================================================
-    # DATA
-    # =====================================================
-
-    for number, item in enumerate(
+    for index, question in enumerate(
         questions,
         start=1
     ):
 
-        options = item.get(
+        options = question.get(
             "options",
             []
         )
 
+        if isinstance(options, list):
 
-        options_text = (
-
-            " | ".join(
-                options
+            options_text = " | ".join(
+                str(option)
+                for option in options
             )
 
-            if options
+        else:
 
-            else ""
+            options_text = str(options)
 
+        worksheet.append(
+            [
+                index,
+                question.get(
+                    "section",
+                    ""
+                ),
+                question.get(
+                    "session_no",
+                    ""
+                ),
+                question.get(
+                    "session",
+                    ""
+                ),
+                question.get(
+                    "category",
+                    ""
+                ),
+                question.get(
+                    "question",
+                    ""
+                ),
+                question.get(
+                    "question_type",
+                    ""
+                ),
+                options_text,
+                question.get(
+                    "required",
+                    True
+                )
+            ]
         )
 
+    # Header formatting
+    for cell in worksheet[1]:
 
-        ws.append([
+        cell.font = cell.font.copy(
+            bold=True
+        )
 
-            number,
+    worksheet.freeze_panes = "A2"
 
-            item.get(
-                "section",
-                ""
-            ),
-
-            item.get(
-                "session_number",
-                ""
-            ),
-
-            item.get(
-                "session_name",
-                ""
-            ),
-
-            item.get(
-                "category",
-                ""
-            ),
-
-            item.get(
-                "question",
-                ""
-            ),
-
-            item.get(
-                "type",
-                ""
-            ),
-
-            options_text,
-
-            "Yes"
-
-            if item.get(
-                "required",
-                True
-            )
-
-            else "No"
-
-        ])
-
-
-    # =====================================================
-    # DATA STYLE
-    # =====================================================
-
-    for row in ws.iter_rows(
-        min_row=2,
-        max_row=ws.max_row
-    ):
-
-        for cell in row:
-
-            cell.border = border
-
-            cell.alignment = Alignment(
-
-                vertical="top",
-
-                wrap_text=True
-
-            )
-
-
-    # =====================================================
-    # COLUMN WIDTHS
-    # =====================================================
-
-    widths = {
-
+    column_widths = {
         "A": 8,
-
-        "B": 25,
-
+        "B": 22,
         "C": 15,
-
-        "D": 50,
-
+        "D": 40,
         "E": 28,
-
-        "F": 85,
-
-        "G": 22,
-
-        "H": 45,
-
+        "F": 70,
+        "G": 20,
+        "H": 50,
         "I": 12
-
     }
 
+    for column, width in column_widths.items():
 
-    for column, width in widths.items():
-
-        ws.column_dimensions[
+        worksheet.column_dimensions[
             column
         ].width = width
 
+    output = io.BytesIO()
 
-    ws.freeze_panes = "A2"
-
-    ws.auto_filter.ref = (
-        ws.dimensions
-    )
-
-
-    # =====================================================
-    # RETURN EXCEL BYTES
-    # =====================================================
-
-    output = BytesIO()
-
-    workbook.save(
-        output
-    )
+    workbook.save(output)
 
     output.seek(0)
 
     return output.getvalue()
 
 
-# =========================================================
-# GOOGLE FORMS SCRIPT GENERATOR
-# =========================================================
-
-def create_google_forms_script():
-
-    script = r'''
-/**
- * AI SURVEY GENERATOR
- *
- * EXPECTED SHEET:
- *     Feedback Form
- *
- * EXPECTED COLUMNS:
- *
- * No.
- * Section
- * Session No.
- * Session
- * Category
- * Question
- * Question Type
- * Options
- * Required
- *
- * HOW TO USE:
- *
- * 1. Download the Excel file from Streamlit.
- * 2. Import the Excel into Google Sheets.
- * 3. Open:
- *
- *      Extensions -> Apps Script
- *
- * 4. Delete the default code.
- * 5. Paste this entire script.
- * 6. Save.
- * 7. Run:
- *
- *      createGoogleFeedbackForm
- *
- * The first run will ask for permission.
- *
- * The script creates ONE Google Form.
- *
- * The Form responses are automatically linked
- * to the same Google Spreadsheet.
- */
-
-
-/**
- * Create the Google Form.
- */
-function createGoogleFeedbackForm() {
-
-  const ss =
-    SpreadsheetApp.getActiveSpreadsheet();
-
-
-  const sheet =
-    ss.getSheetByName(
-      "Feedback Form"
-    );
-
-
-  // -------------------------------------------------------
-  // Check Sheet
-  // -------------------------------------------------------
-
-  if (!sheet) {
-
-    SpreadsheetApp.getUi().alert(
-      'The sheet "Feedback Form" was not found.'
-    );
-
-    return;
-  }
-
-
-  // -------------------------------------------------------
-  // Create Form
-  // -------------------------------------------------------
-
-  const formTitle =
-    ss.getName() +
-    " - Feedback Form";
-
-
-  const form =
-    FormApp.create(
-      formTitle
-    );
-
-
-  form.setDescription(
-    "Workshop feedback form generated from the approved survey."
-  );
-
-
-  form.setConfirmationMessage(
-    "Thank you for submitting your feedback."
-  );
-
-
-  // -------------------------------------------------------
-  // Connect responses to spreadsheet
-  // -------------------------------------------------------
-
-  form.setDestination(
-    FormApp.DestinationType.SPREADSHEET,
-    ss.getId()
-  );
-
-
-  // -------------------------------------------------------
-  // Read sheet
-  // -------------------------------------------------------
-
-  const data =
-    sheet.getDataRange().getValues();
-
-
-  let currentSection = "";
-
-
-  // -------------------------------------------------------
-  // Process rows
-  // -------------------------------------------------------
-
-  for (
-    let i = 1;
-    i < data.length;
-    i++
-  ) {
-
-    const row =
-      data[i];
-
-
-    const section =
-      String(
-        row[1] || ""
-      ).trim();
-
-
-    const question =
-      String(
-        row[5] || ""
-      ).trim();
-
-
-    const questionType =
-      String(
-        row[6] || ""
-      ).trim();
-
-
-    const optionsText =
-      String(
-        row[7] || ""
-      ).trim();
-
-
-    const requiredText =
-      String(
-        row[8] || ""
-      ).trim();
-
-
-    if (!question) {
-      continue;
-    }
-
-
-    const required =
-      requiredText.toLowerCase() ===
-      "yes";
-
-
-    // -----------------------------------------------------
-    // Section heading
-    // -----------------------------------------------------
-
-    if (
-      section &&
-      section !== currentSection
-    ) {
-
-      form
-        .addSectionHeaderItem()
-        .setTitle(section);
-
-      currentSection = section;
-    }
-
-
-    // -----------------------------------------------------
-    // Short Answer
-    // -----------------------------------------------------
-
-    if (
-      questionType ===
-      "Short Answer"
-    ) {
-
-      form
-        .addTextItem()
-        .setTitle(question)
-        .setRequired(required);
-
-    }
-
-
-    // -----------------------------------------------------
-    // Paragraph
-    // -----------------------------------------------------
-
-    else if (
-      questionType ===
-      "Paragraph"
-    ) {
-
-      form
-        .addParagraphTextItem()
-        .setTitle(question)
-        .setRequired(required);
-
-    }
-
-
-    // -----------------------------------------------------
-    // Multiple Choice
-    // -----------------------------------------------------
-
-    else if (
-      questionType ===
-      "Multiple Choice"
-    ) {
-
-      let options = [];
-
-
-      if (optionsText) {
-
-        options =
-          optionsText
-            .split("|")
-            .map(
-              function(option) {
-
-                return option.trim();
-
-              }
-            )
-            .filter(
-              function(option) {
-
-                return option.length > 0;
-
-              }
-            );
-      }
-
-
-      if (
-        options.length > 0
-      ) {
-
-        form
-          .addMultipleChoiceItem()
-          .setTitle(question)
-          .setChoiceValues(options)
-          .setRequired(required);
-
-      }
-
-      else {
-
-        form
-          .addTextItem()
-          .setTitle(question)
-          .setRequired(required);
-
-      }
-    }
-
-  }
-
-
-  // -------------------------------------------------------
-  // Enable Responses
-  // -------------------------------------------------------
-
-  form.setPublished(
-    true
-  );
-
-  form.setAcceptingResponses(
-    true
-  );
-
-
-  // -------------------------------------------------------
-  // Create result sheet
-  // -------------------------------------------------------
-
-  let resultSheet =
-    ss.getSheetByName(
-      "Created Form"
-    );
-
-
-  if (!resultSheet) {
-
-    resultSheet =
-      ss.insertSheet(
-        "Created Form"
-      );
-
-  }
-
-  else {
-
-    resultSheet.clear();
-
-  }
-
-
-  resultSheet.appendRow([
-
-    "Form Title",
-
-    "Edit URL",
-
-    "Response URL",
-
-    "Response Spreadsheet",
-
-    "Created On"
-
-  ]);
-
-
-  resultSheet.appendRow([
-
-    form.getTitle(),
-
-    form.getEditUrl(),
-
-    form.getPublishedUrl(),
-
-    ss.getUrl(),
-
-    new Date()
-
-  ]);
-
-
-  resultSheet.autoResizeColumns(
-    1,
-    5
-  );
-
-
-  // -------------------------------------------------------
-  // Display response URL
-  // -------------------------------------------------------
-
-  SpreadsheetApp.getUi().alert(
-
-    "Google Form created successfully!\n\n" +
-
-    "Response URL:\n" +
-
-    form.getPublishedUrl()
-
-  );
-
-
-  Logger.log(
-    "Edit URL: " +
-    form.getEditUrl()
-  );
-
-
-  Logger.log(
-    "Response URL: " +
-    form.getPublishedUrl()
-  );
-
-}
-
-
-/**
- * Adds a custom menu whenever the sheet opens.
- */
-function onOpen() {
-
-  SpreadsheetApp
-    .getUi()
-    .createMenu(
-      "📋 Survey Form Generator"
+# ============================================================
+# GOOGLE OAUTH COMPONENT
+# ============================================================
+
+def get_google_oauth_component():
+
+    # IMPORTANT:
+    # Reuses the SAME client credentials already present
+    # inside the user's [auth] secrets section.
+
+    client_id = st.secrets[
+        "auth"
+    ][
+        "client_id"
+    ]
+
+    client_secret = st.secrets[
+        "auth"
+    ][
+        "client_secret"
+    ]
+
+    authorize_url = (
+        "https://accounts.google.com/o/oauth2/v2/auth"
     )
-    .addItem(
-      "Create Google Feedback Form",
-      "createGoogleFeedbackForm"
+
+    token_url = (
+        "https://oauth2.googleapis.com/token"
     )
-    .addToUi();
 
-}
-'''
+    refresh_token_url = (
+        "https://oauth2.googleapis.com/token"
+    )
 
+    revoke_token_url = (
+        "https://oauth2.googleapis.com/revoke"
+    )
 
-    return script
-
-
-# =========================================================
-# APPLICATION UI
-# =========================================================
-
-st.title(
-    "📋 AI Survey Generator"
-)
-
-st.write(
-    "Upload a workshop agenda and optionally an example "
-    "feedback form. The AI creates one survey question "
-    "for every session in the agenda."
-)
-
-st.divider()
-
-
-# =========================================================
-# STEP 1 — UPLOAD
-# =========================================================
-
-st.subheader(
-    "1️⃣ Upload Source Files"
-)
-
-
-col1, col2 = st.columns(2)
-
-
-with col1:
-
-    agenda_file = st.file_uploader(
-
-        "📄 Workshop Agenda (.docx) *",
-
-        type=["docx"],
-
-        help=(
-            "Required. Upload the workshop agenda "
-            "containing the session details."
-        )
-
+    return OAuth2Component(
+        client_id,
+        client_secret,
+        authorize_url,
+        token_url,
+        refresh_token_url,
+        revoke_token_url
     )
 
 
-with col2:
+# ============================================================
+# GOOGLE FORM CREATION
+# ============================================================
 
-    example_file = st.file_uploader(
-
-        "📊 Example Feedback Form (.xlsx) — Optional",
-
-        type=["xlsx"],
-
-        help=(
-            "Optional. Upload an existing feedback "
-            "form to help AI understand your preferred "
-            "wording and response style."
-        )
-
-    )
-
-
-# =========================================================
-# STEP 2 — ANALYZE
-# =========================================================
-
-if st.button(
-    "🔍 Analyze Agenda",
-    use_container_width=True
+def create_google_form(
+    title,
+    questions,
+    access_token
 ):
 
-    if not agenda_file:
+    credentials = Credentials(
+        token=access_token,
+        scopes=[FORMS_SCOPE]
+    )
 
-        st.warning(
-            "Please upload the workshop agenda."
+    service = build(
+        "forms",
+        "v1",
+        credentials=credentials,
+        cache_discovery=False
+    )
+
+    # --------------------------------------------------------
+    # 1. Create blank form
+    # --------------------------------------------------------
+
+    form = service.forms().create(
+        body={
+            "info": {
+                "title": title
+            }
+        }
+    ).execute()
+
+    form_id = form["formId"]
+
+    # --------------------------------------------------------
+    # 2. Add questions
+    # --------------------------------------------------------
+
+    requests = []
+
+    for index, question in enumerate(
+        questions
+    ):
+
+        question_text = str(
+            question.get(
+                "question",
+                ""
+            )
+        ).strip()
+
+        question_type = question.get(
+            "question_type",
+            "Multiple Choice"
         )
 
-        st.stop()
+        required = bool(
+            question.get(
+                "required",
+                True
+            )
+        )
+
+        options = question.get(
+            "options",
+            []
+        )
+
+        # -----------------------------------------------
+        # Short Answer
+        # -----------------------------------------------
+
+        if question_type == "Short Answer":
+
+            requests.append(
+                {
+                    "createItem": {
+                        "item": {
+                            "title": question_text,
+                            "questionItem": {
+                                "question": {
+                                    "required": required,
+                                    "textQuestion": {}
+                                }
+                            }
+                        },
+                        "location": {
+                            "index": index
+                        }
+                    }
+                }
+            )
+
+        # -----------------------------------------------
+        # Paragraph
+        # -----------------------------------------------
+
+        elif question_type == "Paragraph":
+
+            requests.append(
+                {
+                    "createItem": {
+                        "item": {
+                            "title": question_text,
+                            "questionItem": {
+                                "question": {
+                                    "required": required,
+                                    "textQuestion": {
+                                        "paragraph": True
+                                    }
+                                }
+                            }
+                        },
+                        "location": {
+                            "index": index
+                        }
+                    }
+                }
+            )
+
+        # -----------------------------------------------
+        # Multiple Choice
+        # -----------------------------------------------
+
+        else:
+
+            choice_options = []
+
+            for option in options:
+
+                choice_options.append(
+                    {
+                        "value": str(option)
+                    }
+                )
+
+            requests.append(
+                {
+                    "createItem": {
+                        "item": {
+                            "title": question_text,
+                            "questionItem": {
+                                "question": {
+                                    "required": required,
+                                    "choiceQuestion": {
+                                        "type": "RADIO",
+                                        "options": choice_options
+                                    }
+                                }
+                            }
+                        },
+                        "location": {
+                            "index": index
+                        }
+                    }
+                }
+            )
+
+    # --------------------------------------------------------
+    # 3. Send all questions
+    # --------------------------------------------------------
+
+    if requests:
+
+        service.forms().batchUpdate(
+            formId=form_id,
+            body={
+                "requests": requests
+            }
+        ).execute()
+
+    return form_id
 
 
-    with st.spinner(
-        "Reading the workshop agenda..."
-    ):
+# ============================================================
+# SESSION STATE
+# ============================================================
+
+if "questions" not in st.session_state:
+    st.session_state.questions = []
+
+if "generated" not in st.session_state:
+    st.session_state.generated = False
+
+if "google_form_token" not in st.session_state:
+    st.session_state.google_form_token = None
+
+
+# ============================================================
+# SIDEBAR — STATUS / NAVIGATION (display-only, no new logic)
+# ============================================================
+
+with st.sidebar:
+
+    st.markdown("## 📋 AI Survey Generator")
+    st.caption("Workshop agenda → feedback survey → Excel / Google Form")
+
+    st.divider()
+
+    st.markdown("**Progress**")
+
+    step1_done = st.session_state.generated
+    step2_done = bool(st.session_state.questions) and step1_done
+    step3_done = st.session_state.google_form_token is not None
+
+    def pill(label, done, current=False):
+        css_class = "step-done" if done else ("step-current" if current else "step-todo")
+        icon = "✅" if done else ("➡️" if current else "◻️")
+        st.markdown(
+            f'<span class="step-pill {css_class}">{icon} {label}</span>',
+            unsafe_allow_html=True
+        )
+
+    pill("1. Upload agenda", step1_done, current=not step1_done)
+    pill("2. Generate survey", step1_done, current=step1_done and not step2_done)
+    pill("3. Review & edit", step2_done)
+    pill("4. Export (Excel / Forms)", step2_done)
+
+    st.divider()
+
+    if st.session_state.questions:
+        st.metric("Questions in survey", len(st.session_state.questions))
+
+    st.divider()
+    st.caption(
+        "Tip: uploading an existing feedback form (XLSX) in step 2 "
+        "helps Gemini match your usual tone and structure."
+    )
+
+
+# ============================================================
+# HEADER
+# ============================================================
+
+st.markdown(
+    """
+    <div class="hero-banner">
+        <h1>📋 AI Survey Generator</h1>
+        <p>Upload a workshop agenda and generate a complete feedback survey using Gemini AI ✨</p>
+    </div>
+    """,
+    unsafe_allow_html=True
+)
+
+st.write("")
+
+
+# ============================================================
+# STEP 1 & 2 — INPUTS (grouped side-by-side for a tighter flow)
+# ============================================================
+
+input_col1, input_col2 = st.columns(2, gap="large")
+
+with input_col1:
+
+    with st.container(border=True):
+
+        st.subheader("1. Upload Workshop Agenda")
+
+        agenda_file = st.file_uploader(
+            "Upload agenda DOCX",
+            type=["docx"],
+            key="agenda_file",
+            help="Required. The agenda drives the session-by-session questions."
+        )
+
+        if agenda_file is not None:
+            st.caption(f"📄 {agenda_file.name}")
+
+with input_col2:
+
+    with st.container(border=True):
+
+        st.subheader("2. Optional Example Feedback Form")
+
+        example_file = st.file_uploader(
+            "Upload an existing feedback XLSX for style/reference (optional)",
+            type=["xlsx"],
+            key="example_file",
+            help="Optional. Used only as a style reference, not copied verbatim."
+        )
+
+        if example_file is not None:
+            st.caption(f"📄 {example_file.name}")
+
+
+# ============================================================
+# GENERATE SURVEY
+# ============================================================
+
+st.write("")
+
+generate_clicked = st.button(
+    "🔍 Analyze & Generate Survey",
+    type="primary",
+    use_container_width=True
+)
+
+if generate_clicked:
+
+    if agenda_file is None:
+
+        st.error(
+            "Please upload the workshop agenda DOCX."
+        )
+
+    else:
 
         try:
 
-            agenda_file.seek(0)
+            with st.status(
+                "Generating your survey...",
+                expanded=True
+            ) as status:
 
-            agenda_text = extract_docx_text(
-                agenda_file
-            )
+                st.write("📖 Reading agenda...")
 
+                agenda_text = extract_docx_text(
+                    agenda_file
+                )
 
-            # -------------------------------------------------
-            # Example is optional
-            # -------------------------------------------------
+                example_text = ""
 
-            if example_file:
+                if example_file is not None:
 
-                with st.spinner(
-                    "Reading the optional example feedback form..."
-                ):
+                    st.write("📖 Reading example feedback form...")
 
-                    example_file.seek(0)
-
-                    example_info = (
-                        extract_example_form(
-                            example_file
-                        )
+                    example_text = extract_xlsx_text(
+                        example_file
                     )
 
-                example_message = (
-                    "Example feedback form loaded."
+                st.write("🤖 Asking Gemini to draft the survey...")
+
+                ai_questions = generate_feedback_form(
+                    agenda_text,
+                    example_text
                 )
+
+                st.write("🧹 Normalizing and validating questions...")
+
+                final_questions = normalize_questions(
+                    ai_questions
+                )
+
+                st.session_state.questions = (
+                    final_questions
+                )
+
+                st.session_state.generated = True
+
+                status.update(
+                    label="Survey generated successfully",
+                    state="complete",
+                    expanded=False
+                )
+
+            st.success(
+                f"Survey generated successfully with "
+                f"{len(final_questions)} questions."
+            )
+
+        except Exception as error:
+
+            st.error(
+                "Failed to generate survey."
+            )
+
+            st.exception(error)
+
+
+# ============================================================
+# STEP 3 — REVIEW
+# ============================================================
+
+if st.session_state.generated:
+
+    st.divider()
+
+    st.subheader(
+        "3. Review & Edit Survey"
+    )
+
+    st.caption(
+        "Expand a question to edit it. Participant-information "
+        "questions are added automatically and can still be edited here."
+    )
+
+    questions = st.session_state.questions
+
+    delete_index = None
+
+    # --------------------------------------------------------
+    # Existing questions (now inside expanders for a cleaner list)
+    # --------------------------------------------------------
+
+    for index, question in enumerate(
+        questions
+    ):
+
+        preview = question.get("question", "").strip() or "(empty question)"
+        type_label = question.get("question_type", "")
+        emoji_map = {
+            "Multiple Choice": "🔘",
+            "Short Answer": "✏️",
+            "Paragraph": "📝"
+        }
+        tag_class_map = {
+            "Multiple Choice": "qtype-mc",
+            "Short Answer": "qtype-short",
+            "Paragraph": "qtype-para"
+        }
+        emoji = emoji_map.get(type_label, "❓")
+        expander_title = f"{emoji} Q{index + 1} · {preview}"
+
+        with st.expander(expander_title, expanded=False):
+
+            header_col1, header_col2 = st.columns(
+                [8, 2]
+            )
+
+            with header_col1:
+                tag_class = tag_class_map.get(type_label, "qtype-mc")
+                st.markdown(
+                    f'Type: <span class="qtype-tag {tag_class}">{type_label}</span>',
+                    unsafe_allow_html=True
+                )
+
+            with header_col2:
+
+                if st.button(
+                    "🗑️ Delete",
+                    key=f"delete_{index}",
+                    use_container_width=True
+                ):
+
+                    delete_index = index
+
+            # ------------------------------------------------
+            # Metadata
+            # ------------------------------------------------
+
+            left_col, right_col = st.columns(
+                [2, 5]
+            )
+
+            with left_col:
+
+                section = st.text_input(
+                    "Section",
+                    value=question.get(
+                        "section",
+                        ""
+                    ),
+                    key=f"section_{index}"
+                )
+
+                session_no = st.text_input(
+                    "Session No.",
+                    value=question.get(
+                        "session_no",
+                        ""
+                    ),
+                    key=f"session_no_{index}"
+                )
+
+                session = st.text_input(
+                    "Session",
+                    value=question.get(
+                        "session",
+                        ""
+                    ),
+                    key=f"session_{index}"
+                )
+
+                category = st.text_input(
+                    "Category",
+                    value=question.get(
+                        "category",
+                        ""
+                    ),
+                    key=f"category_{index}"
+                )
+
+            with right_col:
+
+                question_text = st.text_area(
+                    "Question",
+                    value=question.get(
+                        "question",
+                        ""
+                    ),
+                    height=100,
+                    key=f"question_{index}"
+                )
+
+                question_types = [
+                    "Short Answer",
+                    "Paragraph",
+                    "Multiple Choice"
+                ]
+
+                current_type = question.get(
+                    "question_type",
+                    "Multiple Choice"
+                )
+
+                if current_type not in question_types:
+                    current_type = "Multiple Choice"
+
+                question_type = st.selectbox(
+                    "Question Type",
+                    question_types,
+                    index=question_types.index(
+                        current_type
+                    ),
+                    key=f"type_{index}"
+                )
+
+            required = st.checkbox(
+                "Required",
+                value=bool(
+                    question.get(
+                        "required",
+                        True
+                    )
+                ),
+                key=f"required_{index}"
+            )
+
+            # ------------------------------------------------
+            # Multiple choice options
+            # ------------------------------------------------
+
+            if question_type == "Multiple Choice":
+
+                existing_options = question.get(
+                    "options",
+                    []
+                )
+
+                options_text = st.text_area(
+                    "Options (one per line)",
+                    value="\n".join(
+                        str(option)
+                        for option in existing_options
+                    ),
+                    height=110,
+                    key=f"options_{index}"
+                )
+
+                options = [
+                    line.strip()
+                    for line in options_text.splitlines()
+                    if line.strip()
+                ]
 
             else:
 
-                example_info = {
+                options = []
 
-                    "columns": [],
+            # ------------------------------------------------
+            # Update session state
+            # ------------------------------------------------
 
-                    "question_headers": [],
+            questions[index] = {
+                "section": section,
+                "session_no": session_no,
+                "session": session,
+                "category": category,
+                "question": question_text,
+                "question_type": question_type,
+                "options": options,
+                "required": required
+            }
 
-                    "sample_values": {}
+    # --------------------------------------------------------
+    # Delete
+    # --------------------------------------------------------
 
-                }
+    if delete_index is not None:
 
-                example_message = (
-                    "No example form provided. "
-                    "The default professional survey style "
-                    "will be used."
-                )
-
-
-            st.session_state.agenda_text = (
-                agenda_text
-            )
-
-            st.session_state.example_info = (
-                example_info
-            )
-
-            st.session_state.files_analyzed = (
-                True
-            )
-
-            st.success(
-                "Agenda analyzed successfully. "
-                + example_message
-            )
-
-
-        except Exception as e:
-
-            st.error(
-                "Could not read the uploaded files."
-            )
-
-            st.exception(e)
-
-
-# =========================================================
-# STEP 3 — PREVIEW
-# =========================================================
-
-if st.session_state.files_analyzed:
-
-    st.divider()
-
-    st.subheader(
-        "2️⃣ Source Preview"
-    )
-
-
-    col1, col2 = st.columns(2)
-
-
-    with col1:
-
-        st.markdown(
-            "### 📄 Workshop Agenda"
+        st.session_state.questions.pop(
+            delete_index
         )
-
-        st.text_area(
-
-            "Extracted Agenda",
-
-            value=(
-                st.session_state
-                .agenda_text[:15000]
-            ),
-
-            height=400,
-
-            disabled=True
-
-        )
-
-
-    with col2:
-
-        st.markdown(
-            "### 📊 Example Feedback Form"
-        )
-
-
-        info = (
-            st.session_state
-            .example_info
-        )
-
-
-        if info.get(
-            "question_headers"
-        ):
-
-            st.success(
-                "Example form is being used as a style reference."
-            )
-
-
-            st.write(
-                "Detected columns:"
-            )
-
-
-            for column in info.get(
-                "columns",
-                []
-            ):
-
-                st.write(
-                    f"• {column}"
-                )
-
-
-            st.write(
-                "Detected question styles:"
-            )
-
-
-            for question in info.get(
-                "question_headers",
-                []
-            ):
-
-                st.write(
-                    f"• {question[:150]}"
-                )
-
-
-        else:
-
-            st.info(
-                "No example form was uploaded. "
-                "The app will use its default professional "
-                "survey structure."
-            )
-
-
-# =========================================================
-# STEP 4 — GENERATE
-# =========================================================
-
-if st.session_state.files_analyzed:
-
-    st.divider()
-
-    st.subheader(
-        "3️⃣ Generate Feedback Form"
-    )
-
-
-    st.info(
-        "The app will automatically add the first three "
-        "participant fields and create one AI question "
-        "for every session found in the agenda."
-    )
-
-
-    if st.button(
-
-        "🤖 Generate Feedback Form",
-
-        use_container_width=True
-
-    ):
-
-        with st.spinner(
-
-            "Gemini is analyzing every session "
-            "and generating the survey..."
-
-        ):
-
-            try:
-
-                questions = (
-                    generate_feedback_form(
-
-                        st.session_state
-                        .agenda_text,
-
-                        st.session_state
-                        .example_info
-
-                    )
-                )
-
-
-                st.session_state.questions = (
-                    questions
-                )
-
-
-                st.success(
-
-                    f"Generated {len(questions)} "
-                    "survey fields/questions."
-
-                )
-
-
-            except Exception as e:
-
-                st.error(
-                    "Gemini could not generate the survey."
-                )
-
-                st.exception(e)
-
-
-# =========================================================
-# STEP 5 — REVIEW / EDIT
-# =========================================================
-
-if st.session_state.questions:
-
-    st.divider()
-
-    st.subheader(
-        "4️⃣ Review & Edit Your Feedback Form"
-    )
-
-
-    st.info(
-        "Edit, save, delete or add questions before "
-        "downloading the final files."
-    )
-
-
-    for i, item in enumerate(
-        st.session_state.questions
-    ):
-
-        st.markdown(
-            f"### Question {i + 1}"
-        )
-
-
-        # -------------------------------------------------
-        # Question text
-        # -------------------------------------------------
-
-        edited_question = st.text_area(
-
-            "Question",
-
-            value=item.get(
-                "question",
-                ""
-            ),
-
-            key=f"question_{i}",
-
-            height=90
-
-        )
-
-
-        # -------------------------------------------------
-        # Section + Session
-        # -------------------------------------------------
-
-        col1, col2 = st.columns(2)
-
-
-        with col1:
-
-            sections = [
-
-                "Participant Information",
-
-                "Session Feedback",
-
-                "Overall Feedback",
-
-                "Suggestions"
-
-            ]
-
-
-            current_section = item.get(
-
-                "section",
-
-                "Session Feedback"
-
-            )
-
-
-            if current_section not in sections:
-
-                current_section = (
-                    "Session Feedback"
-                )
-
-
-            selected_section = st.selectbox(
-
-                "Section",
-
-                sections,
-
-                index=sections.index(
-                    current_section
-                ),
-
-                key=f"section_{i}"
-
-            )
-
-
-        with col2:
-
-            session_name = st.text_input(
-
-                "Session",
-
-                value=item.get(
-                    "session_name",
-                    ""
-                ),
-
-                key=f"session_{i}"
-
-            )
-
-
-        # -------------------------------------------------
-        # Session number + category
-        # -------------------------------------------------
-
-        col1, col2 = st.columns(2)
-
-
-        with col1:
-
-            session_number = st.text_input(
-
-                "Session Number",
-
-                value=item.get(
-                    "session_number",
-                    ""
-                ),
-
-                key=f"session_number_{i}"
-
-            )
-
-
-        with col2:
-
-            category = st.text_input(
-
-                "Category",
-
-                value=item.get(
-                    "category",
-                    ""
-                ),
-
-                key=f"category_{i}"
-
-            )
-
-
-        # -------------------------------------------------
-        # Question Type
-        # -------------------------------------------------
-
-        types = [
-
-            "Short Answer",
-
-            "Multiple Choice",
-
-            "Paragraph"
-
-        ]
-
-
-        current_type = item.get(
-
-            "type",
-
-            "Multiple Choice"
-
-        )
-
-
-        if current_type not in types:
-
-            current_type = (
-                "Multiple Choice"
-            )
-
-
-        selected_type = st.selectbox(
-
-            "Question Type",
-
-            types,
-
-            index=types.index(
-                current_type
-            ),
-
-            key=f"type_{i}"
-
-        )
-
-
-        # -------------------------------------------------
-        # Options
-        # -------------------------------------------------
-
-        if selected_type == (
-            "Multiple Choice"
-        ):
-
-            default_options = item.get(
-                "options",
-                []
-            )
-
-
-            if not default_options:
-
-                default_options = [
-
-                    "Excellent",
-
-                    "Very Good",
-
-                    "Good",
-
-                    "Fair",
-
-                    "Poor"
-
-                ]
-
-
-            options_text = st.text_area(
-
-                "Answer Options — one per line",
-
-                value="\n".join(
-                    default_options
-                ),
-
-                key=f"options_{i}",
-
-                height=120
-
-            )
-
-
-            options = [
-
-                option.strip()
-
-                for option in (
-                    options_text.split("\n")
-                )
-
-                if option.strip()
-
-            ]
-
-        else:
-
-            options = []
-
-
-        # -------------------------------------------------
-        # Required
-        # -------------------------------------------------
-
-        required = st.checkbox(
-
-            "Required",
-
-            value=item.get(
-                "required",
-                True
-            ),
-
-            key=f"required_{i}"
-
-        )
-
-
-        # -------------------------------------------------
-        # Save + Delete
-        # -------------------------------------------------
-
-        col1, col2 = st.columns(2)
-
-
-        with col1:
-
-            if st.button(
-
-                "💾 Save",
-
-                key=f"save_{i}",
-
-                use_container_width=True
-
-            ):
-
-                st.session_state.questions[i] = {
-
-                    "section":
-                        selected_section,
-
-                    "session_number":
-                        session_number,
-
-                    "session_name":
-                        session_name,
-
-                    "question":
-                        edited_question,
-
-                    "type":
-                        selected_type,
-
-                    "options":
-                        options,
-
-                    "category":
-                        category,
-
-                    "required":
-                        required
-
-                }
-
-
-                st.success(
-                    f"Question {i + 1} saved."
-                )
-
-
-        with col2:
-
-            if st.button(
-
-                "🗑️ Delete",
-
-                key=f"delete_{i}",
-
-                use_container_width=True
-
-            ):
-
-                st.session_state.questions.pop(
-                    i
-                )
-
-                st.rerun()
-
-
-        st.divider()
-
-
-    # =====================================================
-    # ADD QUESTION
-    # =====================================================
-
-    if st.button(
-
-        "➕ Add Question",
-
-        use_container_width=True
-
-    ):
-
-        st.session_state.questions.append({
-
-            "section":
-                "Session Feedback",
-
-            "session_number":
-                "",
-
-            "session_name":
-                "",
-
-            "question":
-                "Enter your question here...",
-
-            "type":
-                "Multiple Choice",
-
-            "options": [
-
-                "Excellent",
-
-                "Very Good",
-
-                "Good",
-
-                "Fair",
-
-                "Poor"
-
-            ],
-
-            "category":
-                "General",
-
-            "required":
-                True
-
-        })
-
 
         st.rerun()
 
+    # ========================================================
+    # ADD QUESTION / SAVE CHANGES (grouped as an action bar)
+    # ========================================================
 
-# =========================================================
-# STEP 6 — FINAL OUTPUTS
-# =========================================================
+    st.divider()
 
-if st.session_state.questions:
+    action_col1, action_col2 = st.columns(2)
+
+    with action_col1:
+
+        if st.button(
+            "➕ Add Question",
+            use_container_width=True
+        ):
+
+            st.session_state.questions.append(
+                {
+                    "section": "Additional",
+                    "session_no": "",
+                    "session": "",
+                    "category": "Additional Question",
+                    "question": "",
+                    "question_type": "Multiple Choice",
+                    "options": RATING_OPTIONS.copy(),
+                    "required": True
+                }
+            )
+
+            st.rerun()
+
+    with action_col2:
+
+        if st.button(
+            "💾 Save Changes",
+            use_container_width=True
+        ):
+
+            st.success(
+                "Survey changes saved."
+            )
+
+    # ========================================================
+    # STEP 4 — EXCEL
+    # ========================================================
 
     st.divider()
 
     st.subheader(
-        "5️⃣ Final Outputs"
+        "4. Download Survey"
     )
-
-
-    st.write(
-        "Download the approved Excel file and the "
-        "Google Forms script."
-    )
-
-
-    # -----------------------------------------------------
-    # EXCEL
-    # -----------------------------------------------------
 
     excel_data = create_excel(
-
         st.session_state.questions
-
     )
 
-
     st.download_button(
-
-        label="📥 Download Final Excel",
-
+        "⬇️ Download Excel Survey",
         data=excel_data,
-
         file_name="Feedback_Form.xlsx",
-
         mime=(
             "application/vnd.openxmlformats-officedocument."
             "spreadsheetml.sheet"
         ),
-
         use_container_width=True
-
     )
 
+    # ========================================================
+    # STEP 5 — GOOGLE FORM
+    # ========================================================
 
-    # -----------------------------------------------------
-    # GOOGLE SCRIPT
-    # -----------------------------------------------------
+    st.divider()
 
-    script_data = (
-        create_google_forms_script()
+    st.subheader(
+        "5. Create Google Form Automatically"
     )
 
-
-    st.download_button(
-
-        label="📜 Download Google Forms Script",
-
-        data=script_data,
-
-        file_name="Create_Google_Feedback_Form.gs",
-
-        mime="text/plain",
-
-        use_container_width=True
-
+    st.write(
+        "Connect your Google account and create the "
+        "approved survey directly in your own account."
     )
 
+    try:
 
-    st.success(
-        "Your final feedback package is ready."
-    )
+        oauth2 = get_google_oauth_component()
 
+        # ----------------------------------------------------
+        # Not authenticated yet
+        # ----------------------------------------------------
 
-# =========================================================
-# FOOTER
-# =========================================================
+        if st.session_state.google_form_token is None:
 
-st.divider()
+            result = oauth2.authorize_button(
+                name="🔗 Connect Google Account",
+                redirect_uri=(
+                    "http://localhost:8501/"
+                    "component/"
+                    "streamlit_oauth.authorize_button"
+                ),
+                scope=(
+                    "openid email profile "
+                    f"{FORMS_SCOPE}"
+                ),
+                extras_params={
+                    "prompt": "consent",
+                    "access_type": "offline"
+                },
+                pkce="S256",
+                key="google_forms_oauth",
+                use_container_width=True
+            )
 
-st.caption(
-    "AI Survey Generator • "
-    "Agenda → Session-Based Questions → Excel → Google Form"
-)
+            if result and "token" in result:
+
+                st.session_state.google_form_token = (
+                    result["token"]
+                )
+
+                st.rerun()
+
+        # ----------------------------------------------------
+        # Authenticated
+        # ----------------------------------------------------
+
+        else:
+
+            st.success(
+                "✅ Google account connected."
+            )
+
+            col1, col2 = st.columns(
+                [3, 1]
+            )
+
+            with col2:
+
+                if st.button(
+                    "Disconnect"
+                ):
+
+                    st.session_state.google_form_token = None
+
+                    st.rerun()
+
+            # ------------------------------------------------
+            # Create form
+            # ------------------------------------------------
+
+            if st.button(
+                "🚀 Create Google Form",
+                type="primary",
+                use_container_width=True
+            ):
+
+                try:
+
+                    with st.spinner(
+                        "Creating Google Form..."
+                    ):
+
+                        token = (
+                            st.session_state
+                            .google_form_token
+                        )
+
+                        access_token = token[
+                            "access_token"
+                        ]
+
+                        form_id = create_google_form(
+                            "Workshop Feedback Form",
+                            st.session_state.questions,
+                            access_token
+                        )
+
+                    st.success(
+                        "🎉 Google Form created successfully!"
+                    )
+
+                    st.markdown(
+                        f"""
+                        ### ✅ Your Google Form is ready
+
+                        [Open Google Form](https://docs.google.com/forms/d/{form_id}/edit)
+                        """
+                    )
+
+                    st.write(
+                        "Form ID:"
+                    )
+
+                    st.code(
+                        form_id,
+                        language="text"
+                    )
+
+                except Exception as error:
+
+                    st.error(
+                        "❌ Failed to create Google Form."
+                    )
+
+                    st.exception(error)
+
+    except KeyError:
+
+        st.error(
+            "Google OAuth credentials are missing "
+            "from the [auth] section of secrets.toml."
+        )
+
+    except Exception as error:
+
+        st.error(
+            "Google Form authorization could not be loaded."
+        )
+
+        st.exception(error)

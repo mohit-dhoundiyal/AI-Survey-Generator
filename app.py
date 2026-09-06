@@ -27,160 +27,538 @@ st.set_page_config(
 
 
 # ============================================================
-# LIGHT STYLING (visual polish only — no logic here)
+# MODERN STYLING (adaptive light & dark mode)
 # ============================================================
 
 st.markdown(
     """
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap');
 
-        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap');
-
-        html, body, [class*="css"] {
-            font-family: 'Poppins', sans-serif;
+        /* ============================================================
+           THEME DESIGN TOKENS (LIGHT MODE DEFAULT)
+           ============================================================ */
+        :root {
+            --asg-bg: var(--background-color, #F8FAFC);
+            --asg-card-bg: var(--secondary-background-color, #FFFFFF);
+            --asg-card-border: rgba(15, 23, 42, 0.08);
+            --asg-card-border-hover: #7C3AED;
+            --asg-card-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.05);
+            --asg-text-primary: var(--text-color, #0F172A);
+            --asg-text-secondary: #475569;
+            --asg-text-muted: #64748B;
+            --asg-input-bg: #FFFFFF;
+            --asg-input-border: #CBD5E1;
+            --asg-pill-done-bg: #ECFDF5;
+            --asg-pill-done-text: #047857;
+            --asg-pill-done-border: #A7F3D0;
+            --asg-pill-curr-bg: #F5F3FF;
+            --asg-pill-curr-text: #6D28D9;
+            --asg-pill-curr-border: #DDD6FE;
+            --asg-pill-todo-bg: #F1F5F9;
+            --asg-pill-todo-text: #475569;
+            --asg-pill-todo-border: #E2E8F0;
+            --asg-tag-mc-bg: #EFF6FF;
+            --asg-tag-mc-text: #1D4ED8;
+            --asg-tag-mc-border: #BFDBFE;
+            --asg-tag-sa-bg: #FDF2F8;
+            --asg-tag-sa-text: #BE185D;
+            --asg-tag-sa-border: #FBCFE8;
+            --asg-tag-para-bg: #FFFBEB;
+            --asg-tag-para-text: #B45309;
+            --asg-tag-para-border: #FDE68A;
+            --asg-stat-bg: #FFFFFF;
+            --asg-stat-border: #E2E8F0;
         }
 
+        /* ============================================================
+           DARK MODE OVERRIDES (System preference & Streamlit theme toggle)
+           ============================================================ */
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --asg-bg: var(--background-color, #0B0F19);
+                --asg-card-bg: var(--secondary-background-color, #1E293B);
+                --asg-card-border: rgba(255, 255, 255, 0.12);
+                --asg-card-border-hover: #A78BFA;
+                --asg-card-shadow: 0 8px 32px -4px rgba(0, 0, 0, 0.45);
+                --asg-text-primary: var(--text-color, #F8FAFC);
+                --asg-text-secondary: #CBD5E1;
+                --asg-text-muted: #94A3B8;
+                --asg-input-bg: #0F172A;
+                --asg-input-border: #334155;
+                --asg-pill-done-bg: rgba(16, 185, 129, 0.18);
+                --asg-pill-done-text: #34D399;
+                --asg-pill-done-border: rgba(52, 211, 153, 0.4);
+                --asg-pill-curr-bg: rgba(124, 58, 237, 0.25);
+                --asg-pill-curr-text: #DDD6FE;
+                --asg-pill-curr-border: rgba(167, 139, 250, 0.5);
+                --asg-pill-todo-bg: rgba(148, 163, 184, 0.12);
+                --asg-pill-todo-text: #CBD5E1;
+                --asg-pill-todo-border: rgba(148, 163, 184, 0.25);
+                --asg-tag-mc-bg: rgba(59, 130, 246, 0.2);
+                --asg-tag-mc-text: #93C5FD;
+                --asg-tag-mc-border: rgba(147, 197, 253, 0.4);
+                --asg-tag-sa-bg: rgba(236, 72, 153, 0.2);
+                --asg-tag-sa-text: #F472B6;
+                --asg-tag-sa-border: rgba(244, 114, 182, 0.4);
+                --asg-tag-para-bg: rgba(245, 158, 11, 0.2);
+                --asg-tag-para-text: #FCD34D;
+                --asg-tag-para-border: rgba(252, 211, 77, 0.4);
+                --asg-stat-bg: #1E293B;
+                --asg-stat-border: #334155;
+            }
+        }
+
+        [data-theme="dark"], .stApp[data-theme="dark"] {
+            --asg-bg: var(--background-color, #0B0F19);
+            --asg-card-bg: var(--secondary-background-color, #1E293B);
+            --asg-card-border: rgba(255, 255, 255, 0.12);
+            --asg-card-border-hover: #A78BFA;
+            --asg-card-shadow: 0 8px 32px -4px rgba(0, 0, 0, 0.45);
+            --asg-text-primary: var(--text-color, #F8FAFC);
+            --asg-text-secondary: #CBD5E1;
+            --asg-text-muted: #94A3B8;
+            --asg-input-bg: #0F172A;
+            --asg-input-border: #334155;
+            --asg-pill-done-bg: rgba(16, 185, 129, 0.18);
+            --asg-pill-done-text: #34D399;
+            --asg-pill-done-border: rgba(52, 211, 153, 0.4);
+            --asg-pill-curr-bg: rgba(124, 58, 237, 0.25);
+            --asg-pill-curr-text: #DDD6FE;
+            --asg-pill-curr-border: rgba(167, 139, 250, 0.5);
+            --asg-pill-todo-bg: rgba(148, 163, 184, 0.12);
+            --asg-pill-todo-text: #CBD5E1;
+            --asg-pill-todo-border: rgba(148, 163, 184, 0.25);
+            --asg-tag-mc-bg: rgba(59, 130, 246, 0.2);
+            --asg-tag-mc-text: #93C5FD;
+            --asg-tag-mc-border: rgba(147, 197, 253, 0.4);
+            --asg-tag-sa-bg: rgba(236, 72, 153, 0.2);
+            --asg-tag-sa-text: #F472B6;
+            --asg-tag-sa-border: rgba(244, 114, 182, 0.4);
+            --asg-tag-para-bg: rgba(245, 158, 11, 0.2);
+            --asg-tag-para-text: #FCD34D;
+            --asg-tag-para-border: rgba(252, 211, 77, 0.4);
+            --asg-stat-bg: #1E293B;
+            --asg-stat-border: #334155;
+        }
+
+        /* ---- Global Typography & Smooth Rendering ---- */
+        html, body, [class*="css"] {
+            font-family: 'Plus Jakarta Sans', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        /* ---- Ambient adaptive background ---- */
         .stApp {
-            background: linear-gradient(180deg, #F5F3FF 0%, #FDF4FF 45%, #FFF7ED 100%);
+            background-color: var(--asg-bg) !important;
+            background-image: 
+                radial-gradient(circle at 10% 8%, rgba(124, 58, 237, 0.06) 0px, transparent 42%),
+                radial-gradient(circle at 90% 92%, rgba(219, 39, 119, 0.05) 0px, transparent 42%) !important;
+            background-attachment: fixed;
+            color: var(--asg-text-primary) !important;
         }
 
         .block-container {
             padding-top: 2rem;
-            padding-bottom: 3rem;
-            max-width: 1100px;
+            padding-bottom: 3.5rem;
+            max-width: 1140px;
         }
 
         /* ---- Hero title banner ---- */
         .hero-banner {
-            background: linear-gradient(120deg, #7C3AED 0%, #DB2777 55%, #F97316 100%);
-            padding: 28px 32px;
-            border-radius: 18px;
-            margin-bottom: 1.6rem;
-            box-shadow: 0 10px 30px rgba(124, 58, 237, 0.25);
+            background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 35%, #BE185D 75%, #EA580C 100%);
+            padding: clamp(1.4rem, 3.8vw, 2.25rem) clamp(1.3rem, 4vw, 2.5rem);
+            border-radius: 20px;
+            margin-bottom: 1.8rem;
+            border: 1px solid rgba(255, 255, 255, 0.22);
+            box-shadow: 0 16px 36px -6px rgba(109, 40, 217, 0.38), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+            position: relative;
+            overflow: hidden;
         }
-        .hero-banner h1 {
-            color: white !important;
-            margin: 0 0 6px 0;
+        .hero-banner::after {
+            content: '';
+            position: absolute;
+            top: -45%;
+            right: -10%;
+            width: 320px;
+            height: 320px;
+            background: radial-gradient(circle, rgba(255, 255, 255, 0.18) 0%, transparent 70%);
+            pointer-events: none;
+        }
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 5px 14px;
+            background: rgba(255, 255, 255, 0.18);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 9999px;
+            color: #FFFFFF !important;
+            font-size: 0.78rem;
             font-weight: 700;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            margin-bottom: 12px;
         }
-        .hero-banner p {
-            color: rgba(255,255,255,0.92);
-            margin: 0;
-            font-size: 1.02rem;
+        .hero-badge-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background-color: #34D399;
+            box-shadow: 0 0 8px #34D399;
+        }
+        .hero-title {
+            color: #FFFFFF !important;
+            font-size: clamp(1.5rem, 4.5vw, 2.25rem) !important;
+            font-weight: 800 !important;
+            letter-spacing: -0.02em;
+            margin: 0 0 10px 0 !important;
+            line-height: 1.25 !important;
+        }
+        .hero-subtitle {
+            color: rgba(255, 255, 255, 0.94) !important;
+            font-size: clamp(0.92rem, 2.2vw, 1.05rem) !important;
+            font-weight: 400 !important;
+            margin: 0 !important;
+            max-width: 780px;
+            line-height: 1.55 !important;
         }
 
-        /* ---- Section headers get a colored accent bar ---- */
-        h3 {
-            border-left: 6px solid #A855F7;
-            padding-left: 12px;
-            border-radius: 3px;
+        /* ---- Headings ---- */
+        h1, h2, h3, h4, [data-testid="stMarkdownContainer"] h2, [data-testid="stMarkdownContainer"] h3 {
+            color: var(--asg-text-primary) !important;
+            font-weight: 700 !important;
+            letter-spacing: -0.015em;
         }
 
-        /* ---- Cards / containers / expanders ---- */
+        /* ---- Bordered containers (Cards) ---- */
+        div[data-testid="stVerticalBlockBorderWrapper"] {
+            border-radius: 16px !important;
+            border: 1px solid var(--asg-card-border) !important;
+            background: var(--asg-card-bg) !important;
+            box-shadow: var(--asg-card-shadow) !important;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+        div[data-testid="stVerticalBlockBorderWrapper"]:hover {
+            border-color: var(--asg-card-border-hover) !important;
+        }
+        div[data-testid="stVerticalBlockBorderWrapper"] > div {
+            padding: clamp(1.1rem, 2.5vw, 1.5rem) !important;
+        }
+
+        /* ---- File uploader dropzone ---- */
+        div[data-testid="stFileUploaderDropzone"] {
+            border-radius: 14px !important;
+            border: 2px dashed var(--asg-input-border) !important;
+            background: var(--asg-card-bg) !important;
+            transition: all 0.2s ease;
+            padding: 1.2rem 1rem !important;
+        }
+        div[data-testid="stFileUploaderDropzone"]:hover {
+            border-color: #7C3AED !important;
+            background: rgba(124, 58, 237, 0.04) !important;
+        }
+        div[data-testid="stFileUploaderDropzone"] [data-testid="stMarkdownContainer"] p,
+        div[data-testid="stFileUploaderDropzone"] span,
+        div[data-testid="stFileUploaderDropzone"] small {
+            color: var(--asg-text-secondary) !important;
+        }
+        div[data-testid="stFileUploaderDropzone"] button {
+            border-radius: 10px !important;
+        }
+
+        /* ---- File loaded badge ---- */
+        .file-loaded-badge {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            border-radius: 10px;
+            background: var(--asg-pill-done-bg);
+            color: var(--asg-pill-done-text) !important;
+            border: 1px solid var(--asg-pill-done-border);
+            font-size: 0.84rem;
+            font-weight: 600;
+            margin-top: 10px;
+            word-break: break-all;
+        }
+
+        /* ---- Form Inputs, Textareas & Selects ---- */
+        div[data-baseweb="input"], div[data-baseweb="textarea"], div[data-baseweb="select"] {
+            border-radius: 10px !important;
+            border-color: var(--asg-input-border) !important;
+            background-color: var(--asg-input-bg) !important;
+            color: var(--asg-text-primary) !important;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease !important;
+        }
+        div[data-baseweb="input"]:focus-within, div[data-baseweb="textarea"]:focus-within, div[data-baseweb="select"]:focus-within {
+            border-color: #7C3AED !important;
+            box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.2) !important;
+        }
+        div[data-baseweb="input"] input, div[data-baseweb="textarea"] textarea {
+            color: var(--asg-text-primary) !important;
+            background-color: transparent !important;
+            font-family: inherit !important;
+        }
+        label[data-testid="stWidgetLabel"] p {
+            color: var(--asg-text-primary) !important;
+            font-weight: 600 !important;
+            font-size: 0.88rem !important;
+        }
+
+        /* ---- Expanders (Question Cards) ---- */
         div[data-testid="stExpander"] {
-            border: 1px solid #E9D5FF;
-            border-radius: 14px;
-            background: linear-gradient(135deg, #FFFFFF 0%, #FAF5FF 100%);
-            box-shadow: 0 2px 10px rgba(168, 85, 247, 0.08);
-            margin-bottom: 10px;
+            border: 1px solid var(--asg-card-border) !important;
+            border-radius: 14px !important;
+            background: var(--asg-card-bg) !important;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
+            margin-bottom: 12px;
+            overflow: hidden;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+        div[data-testid="stExpander"]:hover {
+            border-color: var(--asg-card-border-hover) !important;
+            box-shadow: 0 4px 16px rgba(124, 58, 237, 0.08);
+        }
+        div[data-testid="stExpander"] details summary {
+            padding: 12px 16px !important;
+            border-radius: 14px !important;
+            background: transparent !important;
         }
         div[data-testid="stExpander"] details summary p {
-            font-size: 1.02rem;
-            font-weight: 600;
-            color: #6D28D9;
+            font-size: 0.98rem !important;
+            font-weight: 600 !important;
+            color: var(--asg-text-primary) !important;
         }
-        div[data-testid="stVerticalBlockBorderWrapper"] {
-            border-radius: 14px !important;
+        div[data-testid="stExpander"] details summary svg {
+            fill: var(--asg-text-primary) !important;
         }
-
-        /* ---- Give bordered containers (upload cards) real breathing room ---- */
-        div[data-testid="stVerticalBlock"] div[data-testid="stVerticalBlockBorderWrapper"] > div {
-            padding: 22px 24px;
-        }
-
-        /* ---- Wider gutter between side-by-side columns ---- */
-        div[data-testid="stHorizontalBlock"] {
-            gap: 2.2rem;
+        div[data-testid="stExpander"] details[open] summary {
+            border-bottom: 1px solid var(--asg-card-border) !important;
+            border-bottom-left-radius: 0 !important;
+            border-bottom-right-radius: 0 !important;
         }
 
-        /* ---- Buttons: colorful gradient ---- */
-        .stButton>button {
-            border-radius: 10px;
-            border: none;
-            background: linear-gradient(90deg, #7C3AED, #DB2777);
-            color: white;
-            font-weight: 600;
-            transition: transform 0.15s ease, box-shadow 0.15s ease;
+        /* ---- Buttons: Primary, Secondary, Download ---- */
+        button[data-testid="baseButton-primary"] {
+            border-radius: 12px !important;
+            border: none !important;
+            background: linear-gradient(135deg, #6366F1 0%, #7C3AED 50%, #9333EA 100%) !important;
+            color: #FFFFFF !important;
+            font-weight: 600 !important;
+            letter-spacing: 0.01em;
+            padding: 0.65rem 1.4rem !important;
+            min-height: 46px !important;
+            box-shadow: 0 4px 16px -2px rgba(124, 58, 237, 0.4) !important;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
         }
-        .stButton>button:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 6px 16px rgba(219, 39, 119, 0.35);
-            color: white;
+        button[data-testid="baseButton-primary"]:hover {
+            transform: translateY(-1px) !important;
+            box-shadow: 0 8px 24px -2px rgba(124, 58, 237, 0.55) !important;
+            filter: brightness(1.08);
         }
-        .stButton>button p {
-            color: white !important;
+        button[data-testid="baseButton-primary"]:active {
+            transform: translateY(0px) !important;
+        }
+        button[data-testid="baseButton-primary"] p,
+        button[data-testid="baseButton-primary"] span,
+        button[data-testid="baseButton-primary"] div {
+            color: #FFFFFF !important;
+            font-weight: 600 !important;
         }
 
-        .stDownloadButton>button {
-            border-radius: 10px;
-            border: none;
-            background: linear-gradient(90deg, #F59E0B, #F97316);
-            color: white;
-            font-weight: 600;
+        button[data-testid="baseButton-secondary"] {
+            border-radius: 12px !important;
+            border: 1px solid var(--asg-card-border) !important;
+            background: var(--asg-card-bg) !important;
+            color: var(--asg-text-primary) !important;
+            font-weight: 600 !important;
+            min-height: 44px !important;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04) !important;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
         }
-        .stDownloadButton>button:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 6px 16px rgba(249, 115, 22, 0.35);
-            color: white;
+        button[data-testid="baseButton-secondary"]:hover {
+            border-color: #7C3AED !important;
+            color: #7C3AED !important;
+            transform: translateY(-1px) !important;
+            box-shadow: 0 4px 12px rgba(124, 58, 237, 0.12) !important;
         }
-        .stDownloadButton>button p {
-            color: white !important;
+        button[data-testid="baseButton-secondary"]:active {
+            transform: translateY(0px) !important;
+        }
+        button[data-testid="baseButton-secondary"] p,
+        button[data-testid="baseButton-secondary"] span {
+            color: inherit !important;
+        }
+
+        .stDownloadButton > button {
+            border-radius: 12px !important;
+            border: none !important;
+            background: linear-gradient(135deg, #F59E0B 0%, #EA580C 100%) !important;
+            color: #FFFFFF !important;
+            font-weight: 600 !important;
+            min-height: 48px !important;
+            box-shadow: 0 4px 16px -2px rgba(234, 88, 12, 0.4) !important;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+        }
+        .stDownloadButton > button:hover {
+            transform: translateY(-1px) !important;
+            box-shadow: 0 8px 24px -2px rgba(234, 88, 12, 0.55) !important;
+            filter: brightness(1.08);
+        }
+        .stDownloadButton > button p,
+        .stDownloadButton > button span {
+            color: #FFFFFF !important;
+            font-weight: 600 !important;
         }
 
         /* ---- Sidebar ---- */
         section[data-testid="stSidebar"] {
-            background: linear-gradient(180deg, #4C1D95 0%, #831843 100%);
-        }
-        section[data-testid="stSidebar"] * {
-            color: #F3E8FF !important;
+            background: var(--asg-card-bg) !important;
+            border-right: 1px solid var(--asg-card-border) !important;
         }
         section[data-testid="stSidebar"] hr {
-            border-color: rgba(255,255,255,0.25);
+            border-color: var(--asg-card-border) !important;
         }
 
         /* ---- Progress step pills ---- */
         .step-pill {
-            display: inline-block;
-            padding: 3px 12px;
-            border-radius: 999px;
-            font-size: 0.78rem;
-            font-weight: 700;
-            margin-bottom: 8px;
-        }
-        .step-done { background-color: #34D399; color: #052E16; }
-        .step-current { background-color: #FBBF24; color: #451A03; }
-        .step-todo { background-color: rgba(255,255,255,0.15); color: #F3E8FF; }
-
-        /* ---- Metric ---- */
-        div[data-testid="stMetric"] {
-            background: rgba(255,255,255,0.12);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 14px;
             border-radius: 12px;
-            padding: 10px;
+            font-size: 0.84rem;
+            font-weight: 600;
+            margin-bottom: 8px;
+            transition: all 0.2s ease;
+        }
+        .step-done {
+            background-color: var(--asg-pill-done-bg);
+            color: var(--asg-pill-done-text) !important;
+            border: 1px solid var(--asg-pill-done-border);
+        }
+        .step-current {
+            background-color: var(--asg-pill-curr-bg);
+            color: var(--asg-pill-curr-text) !important;
+            border: 1px solid var(--asg-pill-curr-border);
+            box-shadow: 0 2px 10px rgba(124, 58, 237, 0.15);
+        }
+        .step-todo {
+            background-color: var(--asg-pill-todo-bg);
+            color: var(--asg-pill-todo-text) !important;
+            border: 1px solid var(--asg-pill-todo-border);
+        }
+
+        /* ---- Metric / Survey stats ---- */
+        div[data-testid="stMetric"] {
+            background: var(--asg-stat-bg) !important;
+            border: 1px solid var(--asg-stat-border) !important;
+            border-radius: 14px !important;
+            padding: 12px 16px !important;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04) !important;
+        }
+        div[data-testid="stMetric"] label,
+        div[data-testid="stMetric"] [data-testid="stMetricLabel"] p {
+            color: var(--asg-text-secondary) !important;
+            font-size: 0.82rem !important;
+            font-weight: 500 !important;
+        }
+        div[data-testid="stMetric"] div[data-testid="stMetricValue"] {
+            color: #7C3AED !important;
+            font-weight: 800 !important;
+            font-size: 1.6rem !important;
         }
 
         /* ---- Tags for question type ---- */
         .qtype-tag {
-            display: inline-block;
-            padding: 2px 10px;
-            border-radius: 999px;
-            font-size: 0.72rem;
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 12px;
+            border-radius: 9999px;
+            font-size: 0.75rem;
             font-weight: 700;
-            margin-left: 8px;
+            letter-spacing: 0.02em;
+            margin-left: 6px;
         }
-        .qtype-mc { background-color: #DBEAFE; color: #1E40AF; }
-        .qtype-short { background-color: #FCE7F3; color: #9D174D; }
-        .qtype-para { background-color: #FEF3C7; color: #92400E; }
+        .qtype-mc {
+            background-color: var(--asg-tag-mc-bg);
+            color: var(--asg-tag-mc-text) !important;
+            border: 1px solid var(--asg-tag-mc-border);
+        }
+        .qtype-short {
+            background-color: var(--asg-tag-sa-bg);
+            color: var(--asg-tag-sa-text) !important;
+            border: 1px solid var(--asg-tag-sa-border);
+        }
+        .qtype-para {
+            background-color: var(--asg-tag-para-bg);
+            color: var(--asg-tag-para-text) !important;
+            border: 1px solid var(--asg-tag-para-border);
+        }
 
+        /* ---- Alerts & Status ---- */
+        div[data-testid="stAlert"] {
+            border-radius: 12px !important;
+            border: 1px solid var(--asg-card-border) !important;
+        }
+        div[data-testid="stStatus"] {
+            border-radius: 14px !important;
+            border: 1px solid var(--asg-card-border) !important;
+            background: var(--asg-card-bg) !important;
+        }
+
+        /* ============================================================
+           MOBILE RESPONSIVENESS (< 768px)
+           ============================================================ */
+        @media (max-width: 768px) {
+            .block-container {
+                padding-top: 1rem !important;
+                padding-bottom: 2.5rem !important;
+                padding-left: 0.85rem !important;
+                padding-right: 0.85rem !important;
+            }
+            .hero-banner {
+                padding: 1.3rem 1.1rem !important;
+                border-radius: 16px !important;
+                margin-bottom: 1.25rem !important;
+            }
+            .hero-title {
+                font-size: 1.45rem !important;
+            }
+            .hero-subtitle {
+                font-size: 0.88rem !important;
+                line-height: 1.45 !important;
+            }
+            /* Stack columns on small viewports so fields don't get squished */
+            div[data-testid="stHorizontalBlock"] {
+                flex-wrap: wrap !important;
+                gap: 0.85rem !important;
+            }
+            div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"] {
+                min-width: 100% !important;
+                flex: 1 1 100% !important;
+            }
+            /* Mobile touch friendly buttons */
+            button[data-testid="baseButton-primary"],
+            button[data-testid="baseButton-secondary"],
+            .stDownloadButton > button {
+                width: 100% !important;
+                min-height: 48px !important;
+                margin-bottom: 0.5rem !important;
+            }
+            /* Prevent expander header overflow on phones */
+            div[data-testid="stExpander"] details summary p {
+                font-size: 0.9rem !important;
+                white-space: nowrap !important;
+                overflow: hidden !important;
+                text-overflow: ellipsis !important;
+                max-width: 80vw !important;
+            }
+        }
     </style>
     """,
     unsafe_allow_html=True
@@ -1074,7 +1452,7 @@ with st.sidebar:
 
     st.divider()
 
-    st.markdown("**Progress**")
+    st.markdown("**Progress Tracker**")
 
     step1_done = st.session_state.generated
     step2_done = bool(st.session_state.questions) and step1_done
@@ -1084,36 +1462,48 @@ with st.sidebar:
         css_class = "step-done" if done else ("step-current" if current else "step-todo")
         icon = "✅" if done else ("➡️" if current else "◻️")
         st.markdown(
-            f'<span class="step-pill {css_class}">{icon} {label}</span>',
+            f'<div class="step-pill {css_class}">{icon} <span>{label}</span></div>',
             unsafe_allow_html=True
         )
 
     pill("1. Upload agenda", step1_done, current=not step1_done)
     pill("2. Generate survey", step1_done, current=step1_done and not step2_done)
-    pill("3. Review & edit", step2_done)
+    pill("3. Review & edit", step2_done, current=step2_done and not step3_done)
     pill("4. Export (Excel / Forms)", step2_done)
 
     st.divider()
 
     if st.session_state.questions:
-        st.metric("Questions in survey", len(st.session_state.questions))
+        st.metric("Total Questions", len(st.session_state.questions))
 
     st.divider()
-    st.caption(
-        "Tip: uploading an existing feedback form (XLSX) in step 2 "
-        "helps Gemini match your usual tone and structure."
+    st.markdown(
+        """
+        <div style="font-size: 0.82rem; opacity: 0.85; line-height: 1.45;">
+            💡 <strong>Pro-Tip:</strong> Uploading an existing feedback form (.xlsx) in Step 2 
+            guides Gemini to mirror your team's preferred rating scale and tone.
+        </div>
+        """,
+        unsafe_allow_html=True
     )
 
 
 # ============================================================
-# HEADER
+# HEADER & HERO BANNER
 # ============================================================
 
 st.markdown(
     """
     <div class="hero-banner">
-        <h1>📋 AI Survey Generator</h1>
-        <p>Upload a workshop agenda and generate a complete feedback survey using Gemini AI ✨</p>
+        <div class="hero-badge">
+            <span class="hero-badge-dot"></span>
+            AI-Powered Survey Engine
+        </div>
+        <h1 class="hero-title">📋 AI Survey Generator</h1>
+        <p class="hero-subtitle">
+            Turn workshop agendas into comprehensive, tailored feedback surveys in seconds. 
+            Review and fine-tune questions, then export directly to Excel or Google Forms ✨
+        </p>
     </div>
     """,
     unsafe_allow_html=True
@@ -1123,7 +1513,7 @@ st.write("")
 
 
 # ============================================================
-# STEP 1 & 2 — INPUTS (grouped side-by-side for a tighter flow)
+# STEP 1 & 2 — INPUTS (Responsive side-by-side / stacked)
 # ============================================================
 
 input_col1, input_col2 = st.columns(2, gap="large")
@@ -1132,7 +1522,8 @@ with input_col1:
 
     with st.container(border=True):
 
-        st.subheader("1. Upload Workshop Agenda")
+        st.markdown("### 📌 1. Workshop Agenda")
+        st.caption("Required · DOCX format")
 
         agenda_file = st.file_uploader(
             "Upload agenda DOCX",
@@ -1142,13 +1533,23 @@ with input_col1:
         )
 
         if agenda_file is not None:
-            st.caption(f"📄 {agenda_file.name}")
+            size_kb = round(len(agenda_file.getvalue()) / 1024, 1)
+            st.markdown(
+                f"""
+                <div class="file-loaded-badge">
+                    <span>✅</span>
+                    <span><strong>{agenda_file.name}</strong> ({size_kb} KB loaded)</span>
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
 
 with input_col2:
 
     with st.container(border=True):
 
-        st.subheader("2. Optional Example Feedback Form")
+        st.markdown("### 💡 2. Reference Form")
+        st.caption("Optional · XLSX format")
 
         example_file = st.file_uploader(
             "Upload an existing feedback XLSX for style/reference (optional)",
@@ -1158,17 +1559,26 @@ with input_col2:
         )
 
         if example_file is not None:
-            st.caption(f"📄 {example_file.name}")
+            size_kb = round(len(example_file.getvalue()) / 1024, 1)
+            st.markdown(
+                f"""
+                <div class="file-loaded-badge">
+                    <span>✅</span>
+                    <span><strong>{example_file.name}</strong> ({size_kb} KB loaded)</span>
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
 
 
 # ============================================================
-# GENERATE SURVEY
+# GENERATE SURVEY CTA BUTTON
 # ============================================================
 
 st.write("")
 
 generate_clicked = st.button(
-    "🔍 Analyze & Generate Survey",
+    "✨ Analyze Agenda & Generate Survey",
     type="primary",
     use_container_width=True
 )
@@ -1178,7 +1588,7 @@ if generate_clicked:
     if agenda_file is None:
 
         st.error(
-            "Please upload the workshop agenda DOCX."
+            "⚠️ Please upload the workshop agenda DOCX in Step 1 before generating."
         )
 
     else:
@@ -1186,11 +1596,11 @@ if generate_clicked:
         try:
 
             with st.status(
-                "Generating your survey...",
+                "🚀 Generating your feedback survey with AI...",
                 expanded=True
             ) as status:
 
-                st.write("📖 Reading agenda...")
+                st.write("📖 Reading agenda DOCX...")
 
                 agenda_text = extract_docx_text(
                     agenda_file
@@ -1206,7 +1616,7 @@ if generate_clicked:
                         example_file
                     )
 
-                st.write("🤖 Asking Gemini to draft the survey...")
+                st.write("🤖 Asking Gemini to craft tailored questions...")
 
                 ai_questions = generate_feedback_form(
                     agenda_text,
@@ -1226,14 +1636,14 @@ if generate_clicked:
                 st.session_state.generated = True
 
                 status.update(
-                    label="Survey generated successfully",
+                    label=f"Survey generated successfully ({len(final_questions)} questions)!",
                     state="complete",
                     expanded=False
                 )
 
             st.success(
-                f"Survey generated successfully with "
-                f"{len(final_questions)} questions."
+                f"🎉 Survey generated successfully with **{len(final_questions)}** questions! "
+                "Scroll down to Step 3 to review and customize."
             )
 
         except Exception as error:
@@ -1246,28 +1656,46 @@ if generate_clicked:
 
 
 # ============================================================
-# STEP 3 — REVIEW
+# STEP 3 — REVIEW & EDIT SURVEY
 # ============================================================
 
 if st.session_state.generated:
 
     st.divider()
 
-    st.subheader(
-        "3. Review & Edit Survey"
-    )
+    st.markdown("## 3. Review & Edit Survey")
 
     st.caption(
-        "Expand a question to edit it. Participant-information "
-        "questions are added automatically and can still be edited here."
+        "Expand any question to edit wording, question type, answer choices, or session metadata. "
+        "Participant-information questions are added automatically and can be edited below."
     )
 
     questions = st.session_state.questions
 
+    # --------------------------------------------------------
+    # Questions Summary Stats
+    # --------------------------------------------------------
+    total_q = len(questions)
+    mc_q = sum(1 for q in questions if q.get("question_type") == "Multiple Choice")
+    sa_q = sum(1 for q in questions if q.get("question_type") == "Short Answer")
+    para_q = sum(1 for q in questions if q.get("question_type") == "Paragraph")
+
+    stat_c1, stat_c2, stat_c3, stat_c4 = st.columns(4)
+    with stat_c1:
+        st.metric("Total Questions", total_q)
+    with stat_c2:
+        st.metric("🔘 Multiple Choice", mc_q)
+    with stat_c3:
+        st.metric("✏️ Short Answer", sa_q)
+    with stat_c4:
+        st.metric("📝 Paragraph", para_q)
+
+    st.write("")
+
     delete_index = None
 
     # --------------------------------------------------------
-    # Existing questions (now inside expanders for a cleaner list)
+    # Existing questions inside modern expanders
     # --------------------------------------------------------
 
     for index, question in enumerate(
@@ -1275,7 +1703,7 @@ if st.session_state.generated:
     ):
 
         preview = question.get("question", "").strip() or "(empty question)"
-        type_label = question.get("question_type", "")
+        type_label = question.get("question_type", "Multiple Choice")
         emoji_map = {
             "Multiple Choice": "🔘",
             "Short Answer": "✏️",
@@ -1287,89 +1715,47 @@ if st.session_state.generated:
             "Paragraph": "qtype-para"
         }
         emoji = emoji_map.get(type_label, "❓")
-        expander_title = f"{emoji} Q{index + 1} · {preview}"
+        expander_title = f"{emoji} Q{index + 1}: {preview}"
 
         with st.expander(expander_title, expanded=False):
 
+            # Header row: Type tag & Delete button
             header_col1, header_col2 = st.columns(
-                [8, 2]
+                [3, 1]
             )
 
             with header_col1:
                 tag_class = tag_class_map.get(type_label, "qtype-mc")
                 st.markdown(
-                    f'Type: <span class="qtype-tag {tag_class}">{type_label}</span>',
+                    f'Question Type: <span class="qtype-tag {tag_class}">{type_label}</span>',
                     unsafe_allow_html=True
                 )
 
             with header_col2:
-
                 if st.button(
-                    "🗑️ Delete",
+                    "🗑️ Delete Question",
                     key=f"delete_{index}",
                     use_container_width=True
                 ):
-
                     delete_index = index
 
-            # ------------------------------------------------
-            # Metadata
-            # ------------------------------------------------
-
-            left_col, right_col = st.columns(
-                [2, 5]
+            # Question Text prompt
+            question_text = st.text_area(
+                "Question Text",
+                value=question.get(
+                    "question",
+                    ""
+                ),
+                height=85,
+                key=f"question_{index}"
             )
 
-            with left_col:
+            # Question Type selector & Required toggle
+            type_col1, type_col2 = st.columns(
+                [3, 1]
+            )
 
-                section = st.text_input(
-                    "Section",
-                    value=question.get(
-                        "section",
-                        ""
-                    ),
-                    key=f"section_{index}"
-                )
-
-                session_no = st.text_input(
-                    "Session No.",
-                    value=question.get(
-                        "session_no",
-                        ""
-                    ),
-                    key=f"session_no_{index}"
-                )
-
-                session = st.text_input(
-                    "Session",
-                    value=question.get(
-                        "session",
-                        ""
-                    ),
-                    key=f"session_{index}"
-                )
-
-                category = st.text_input(
-                    "Category",
-                    value=question.get(
-                        "category",
-                        ""
-                    ),
-                    key=f"category_{index}"
-                )
-
-            with right_col:
-
-                question_text = st.text_area(
-                    "Question",
-                    value=question.get(
-                        "question",
-                        ""
-                    ),
-                    height=100,
-                    key=f"question_{index}"
-                )
-
+            with type_col1:
                 question_types = [
                     "Short Answer",
                     "Paragraph",
@@ -1393,21 +1779,21 @@ if st.session_state.generated:
                     key=f"type_{index}"
                 )
 
-            required = st.checkbox(
-                "Required",
-                value=bool(
-                    question.get(
-                        "required",
-                        True
-                    )
-                ),
-                key=f"required_{index}"
-            )
+            with type_col2:
+                st.write("")
+                st.write("")
+                required = st.checkbox(
+                    "Required field",
+                    value=bool(
+                        question.get(
+                            "required",
+                            True
+                        )
+                    ),
+                    key=f"required_{index}"
+                )
 
-            # ------------------------------------------------
             # Multiple choice options
-            # ------------------------------------------------
-
             if question_type == "Multiple Choice":
 
                 existing_options = question.get(
@@ -1416,13 +1802,14 @@ if st.session_state.generated:
                 )
 
                 options_text = st.text_area(
-                    "Options (one per line)",
+                    "Answer Choices (one per line)",
                     value="\n".join(
                         str(option)
                         for option in existing_options
                     ),
-                    height=110,
-                    key=f"options_{index}"
+                    height=100,
+                    key=f"options_{index}",
+                    help="Enter each selectable choice on its own line."
                 )
 
                 options = [
@@ -1435,10 +1822,48 @@ if st.session_state.generated:
 
                 options = []
 
-            # ------------------------------------------------
-            # Update session state
-            # ------------------------------------------------
+            # Metadata in a clean 2-column layout (responsive on mobile & desktop)
+            meta_col1, meta_col2 = st.columns(2)
 
+            with meta_col1:
+                section = st.text_input(
+                    "Section Name",
+                    value=question.get(
+                        "section",
+                        ""
+                    ),
+                    key=f"section_{index}"
+                )
+
+                session_no = st.text_input(
+                    "Session No.",
+                    value=question.get(
+                        "session_no",
+                        ""
+                    ),
+                    key=f"session_no_{index}"
+                )
+
+            with meta_col2:
+                session = st.text_input(
+                    "Session Title",
+                    value=question.get(
+                        "session",
+                        ""
+                    ),
+                    key=f"session_{index}"
+                )
+
+                category = st.text_input(
+                    "Category",
+                    value=question.get(
+                        "category",
+                        ""
+                    ),
+                    key=f"category_{index}"
+                )
+
+            # Update question state
             questions[index] = {
                 "section": section,
                 "session_no": session_no,
@@ -1463,7 +1888,7 @@ if st.session_state.generated:
         st.rerun()
 
     # ========================================================
-    # ADD QUESTION / SAVE CHANGES (grouped as an action bar)
+    # ADD QUESTION / SAVE CHANGES (Action Bar)
     # ========================================================
 
     st.divider()
@@ -1473,7 +1898,7 @@ if st.session_state.generated:
     with action_col1:
 
         if st.button(
-            "➕ Add Question",
+            "➕ Add Custom Question",
             use_container_width=True
         ):
 
@@ -1495,38 +1920,50 @@ if st.session_state.generated:
     with action_col2:
 
         if st.button(
-            "💾 Save Changes",
+            "💾 Save All Changes",
+            type="primary",
             use_container_width=True
         ):
 
             st.success(
-                "Survey changes saved."
+                "✅ All survey changes saved successfully."
             )
 
     # ========================================================
-    # STEP 4 — EXCEL
+    # STEP 4 — EXCEL EXPORT
     # ========================================================
 
     st.divider()
 
-    st.subheader(
-        "4. Download Survey"
-    )
+    st.markdown("## 4. Download Survey")
+    st.caption("Export your structured feedback survey to an Excel workbook formatted for offline distribution or team review.")
 
-    excel_data = create_excel(
-        st.session_state.questions
-    )
+    with st.container(border=True):
 
-    st.download_button(
-        "⬇️ Download Excel Survey",
-        data=excel_data,
-        file_name="Feedback_Form.xlsx",
-        mime=(
-            "application/vnd.openxmlformats-officedocument."
-            "spreadsheetml.sheet"
-        ),
-        use_container_width=True
-    )
+        d_col1, d_col2 = st.columns([3, 2])
+
+        with d_col1:
+            st.markdown("### 📊 Excel (.xlsx) Export")
+            st.write(
+                "Contains all session questions, options, participant fields, "
+                "and formatted column headers ready for spreadsheets."
+            )
+
+        with d_col2:
+            excel_data = create_excel(
+                st.session_state.questions
+            )
+
+            st.download_button(
+                "⬇️ Download Excel Survey",
+                data=excel_data,
+                file_name="Feedback_Form.xlsx",
+                mime=(
+                    "application/vnd.openxmlformats-officedocument."
+                    "spreadsheetml.sheet"
+                ),
+                use_container_width=True
+            )
 
     # ========================================================
     # STEP 5 — GOOGLE FORM
@@ -1534,148 +1971,151 @@ if st.session_state.generated:
 
     st.divider()
 
-    st.subheader(
-        "5. Create Google Form Automatically"
-    )
+    st.markdown("## 5. Export to Google Forms")
+    st.caption("Publish your approved survey straight into your Google account as an active, editable Google Form.")
 
-    st.write(
-        "Connect your Google account and create the "
-        "approved survey directly in your own account."
-    )
+    with st.container(border=True):
 
-    try:
+        try:
 
-        oauth2 = get_google_oauth_component()
+            oauth2 = get_google_oauth_component()
 
-        # ----------------------------------------------------
-        # Not authenticated yet
-        # ----------------------------------------------------
+            # ----------------------------------------------------
+            # Not authenticated yet
+            # ----------------------------------------------------
 
-        if st.session_state.google_form_token is None:
+            if st.session_state.google_form_token is None:
 
-            result = oauth2.authorize_button(
-                name="🔗 Connect Google Account",
-                redirect_uri=(
-                    "http://localhost:8501/"
-                    "component/"
-                    "streamlit_oauth.authorize_button"
-                ),
-                scope=(
-                    "openid email profile "
-                    f"{FORMS_SCOPE}"
-                ),
-                extras_params={
-                    "prompt": "consent",
-                    "access_type": "offline"
-                },
-                pkce="S256",
-                key="google_forms_oauth",
-                use_container_width=True
-            )
-
-            if result and "token" in result:
-
-                st.session_state.google_form_token = (
-                    result["token"]
+                st.markdown("### 🔗 Google Account Connection")
+                st.write(
+                    "Connect your Google account to authorize automatic Google Form generation."
                 )
 
-                st.rerun()
+                result = oauth2.authorize_button(
+                    name="🔗 Connect Google Account",
+                    redirect_uri=(
+                        "http://localhost:8501/"
+                        "component/"
+                        "streamlit_oauth.authorize_button"
+                    ),
+                    scope=(
+                        "openid email profile "
+                        f"{FORMS_SCOPE}"
+                    ),
+                    extras_params={
+                        "prompt": "consent",
+                        "access_type": "offline"
+                    },
+                    pkce="S256",
+                    key="google_forms_oauth",
+                    use_container_width=True
+                )
 
-        # ----------------------------------------------------
-        # Authenticated
-        # ----------------------------------------------------
+                if result and "token" in result:
 
-        else:
-
-            st.success(
-                "✅ Google account connected."
-            )
-
-            col1, col2 = st.columns(
-                [3, 1]
-            )
-
-            with col2:
-
-                if st.button(
-                    "Disconnect"
-                ):
-
-                    st.session_state.google_form_token = None
+                    st.session_state.google_form_token = (
+                        result["token"]
+                    )
 
                     st.rerun()
 
-            # ------------------------------------------------
-            # Create form
-            # ------------------------------------------------
+            # ----------------------------------------------------
+            # Authenticated
+            # ----------------------------------------------------
 
-            if st.button(
-                "🚀 Create Google Form",
-                type="primary",
-                use_container_width=True
-            ):
+            else:
 
-                try:
+                auth_col1, auth_col2 = st.columns(
+                    [3, 1]
+                )
 
-                    with st.spinner(
-                        "Creating Google Form..."
+                with auth_col1:
+                    st.success(
+                        "✅ Google account connected successfully."
+                    )
+
+                with auth_col2:
+                    if st.button(
+                        "Disconnect",
+                        use_container_width=True
                     ):
 
-                        token = (
-                            st.session_state
-                            .google_form_token
+                        st.session_state.google_form_token = None
+
+                        st.rerun()
+
+                st.write("")
+
+                # ------------------------------------------------
+                # Create form button
+                # ------------------------------------------------
+
+                if st.button(
+                    "🚀 Create Google Form Now",
+                    type="primary",
+                    use_container_width=True
+                ):
+
+                    try:
+
+                        with st.spinner(
+                            "Publishing questions to Google Forms API..."
+                        ):
+
+                            token = (
+                                st.session_state
+                                .google_form_token
+                            )
+
+                            access_token = token[
+                                "access_token"
+                            ]
+
+                            form_id = create_google_form(
+                                "Workshop Feedback Form",
+                                st.session_state.questions,
+                                access_token
+                            )
+
+                        st.success(
+                            "🎉 Google Form created successfully!"
                         )
 
-                        access_token = token[
-                            "access_token"
-                        ]
-
-                        form_id = create_google_form(
-                            "Workshop Feedback Form",
-                            st.session_state.questions,
-                            access_token
+                        st.markdown(
+                            f"""
+                            <div style="background: var(--asg-pill-curr-bg); border: 1px solid var(--asg-pill-curr-border); border-radius: 12px; padding: 18px; margin-top: 10px;">
+                                <h3 style="margin-top: 0; color: var(--asg-text-primary);">✅ Your Google Form is Live!</h3>
+                                <p style="color: var(--asg-text-secondary); margin-bottom: 14px;">The form has been published to your Google Drive.</p>
+                                <a href="https://docs.google.com/forms/d/{form_id}/edit" target="_blank" style="display: inline-block; background: #7C3AED; color: #FFFFFF; font-weight: 600; padding: 10px 20px; border-radius: 10px; text-decoration: none; margin-bottom: 12px;">
+                                    ↗️ Open in Google Forms
+                                </a>
+                                <div style="font-size: 0.85rem; color: var(--asg-text-muted); margin-top: 8px;">
+                                    Form ID: <code>{form_id}</code>
+                                </div>
+                            </div>
+                            """,
+                            unsafe_allow_html=True
                         )
 
-                    st.success(
-                        "🎉 Google Form created successfully!"
-                    )
+                    except Exception as error:
 
-                    st.markdown(
-                        f"""
-                        ### ✅ Your Google Form is ready
+                        st.error(
+                            "❌ Failed to create Google Form."
+                        )
 
-                        [Open Google Form](https://docs.google.com/forms/d/{form_id}/edit)
-                        """
-                    )
+                        st.exception(error)
 
-                    st.write(
-                        "Form ID:"
-                    )
+        except KeyError:
 
-                    st.code(
-                        form_id,
-                        language="text"
-                    )
+            st.error(
+                "Google OAuth credentials are missing "
+                "from the [auth] section of secrets.toml."
+            )
 
-                except Exception as error:
+        except Exception as error:
 
-                    st.error(
-                        "❌ Failed to create Google Form."
-                    )
+            st.error(
+                "Google Form authorization could not be loaded."
+            )
 
-                    st.exception(error)
-
-    except KeyError:
-
-        st.error(
-            "Google OAuth credentials are missing "
-            "from the [auth] section of secrets.toml."
-        )
-
-    except Exception as error:
-
-        st.error(
-            "Google Form authorization could not be loaded."
-        )
-
-        st.exception(error)
+            st.exception(error)

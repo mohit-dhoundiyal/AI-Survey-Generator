@@ -641,18 +641,22 @@ def extract_xlsx_text(uploaded_file):
             f"Sheet: {worksheet.title}"
         )
 
-        for row in worksheet.iter_rows(
-            values_only=True
+        for row_idx, row in enumerate(
+            worksheet.iter_rows(values_only=True),
+            start=1
         ):
+            # Focus on header row and first few sample response rows
+            if row_idx > 20:
+                break
 
             values = []
 
             for value in row:
 
                 if value is not None:
-                    values.append(
-                        str(value).strip()
-                    )
+                    cleaned_val = str(value).strip()
+                    if cleaned_val:
+                        values.append(cleaned_val)
 
             if values:
                 parts.append(
@@ -673,25 +677,39 @@ def build_example_instruction(example_text):
         return """
 No example feedback form was provided.
 
-Use a professional workshop feedback style.
+DEFAULT QUESTION STYLE:
+For each session identified in the agenda:
+- If a speaker, trainer, or conductor is identified in the agenda:
+  Use this standard template:
+  "How would you rate the overall delivery and usefulness of the session \\"{session_title}\\" delivered by {speaker_name} ({speaker_org})?"
+  (If the speaker's organization or designation is not given, omit the parentheses).
+- If NO speaker or trainer is mentioned for that session:
+  Use this standard template:
+  "How would you rate the overall delivery and usefulness of the session \\"{session_title}\\"?"
 """
 
     return f"""
-An existing feedback form has been provided only as a
-STYLE AND STRUCTURE REFERENCE.
+CRITICAL INSTRUCTION — A SAMPLE FEEDBACK FORM WAS PROVIDED:
+YOU MUST CLOSELY MIRROR AND REPLICATE THE SAMPLE'S EXACT QUESTION PHRASING FORMULA AND STRUCTURE!
 
-Use it to understand:
-- professional wording
-- rating style
-- feedback structure
-- overall presentation
+1. ANALYZE THE SAMPLE'S QUESTION PATTERN:
+   Look closely at the questions / column headers in the example feedback form below (especially Row 1 headers).
+   Notice the exact sentence structure, question phrasing, and punctuation used.
+   For example, in the sample:
+   "How would you rate the overall delivery and usefulness of the session \\"[Session Title]\\" delivered by [Speaker Name] ([Organization])?"
 
-Do NOT copy participant information questions.
-Do NOT copy questions blindly.
-The workshop agenda is the PRIMARY source.
+2. REPLICATE THIS EXACT QUESTION TEMPLATE FOR EVERY SESSION IN THE AGENDA:
+   - Apply the sample's exact phrasing pattern, wording, and quotation style to every session in the agenda.
+   - Insert the actual session title into the question.
+   - Check the agenda for who conducted, delivered, or trained each session (e.g. Speaker, Trainer, Faculty, Resource Person, Expert, or Organization).
+   - If a speaker/conductor is identified in the agenda, include them using the sample's speaker format (e.g. "delivered by [Speaker Name] ([Organization])" or "conducted by [Speaker Name]").
+   - If NO speaker/conductor is mentioned in the agenda for that session, smoothly omit the speaker part while keeping the rest of the question phrasing formula intact.
 
-Example feedback form:
+3. DO NOT generate questions that focus on granular syllabus sub-topics (such as specific Excel formulas or software functions) unless the sample specifically does so. Match the style and scope of the sample!
 
+4. DO NOT create participant demographic questions (Full Name, Designation, Organisation/Department); those are added separately.
+
+Sample feedback form content:
 -------------------------
 {example_text}
 -------------------------
@@ -737,17 +755,19 @@ IMPORTANT RULES:
 
 6. Preserve the session title/name.
 
-7. Each session question must be specifically related to:
-   - the session title
-   - topics covered
-   - activities
-   - practical work
-   - tools or concepts covered
+7. SPEAKER / CONDUCTOR EXTRACTION:
+   - Carefully inspect the agenda for the speaker, trainer, resource person, presenter, faculty, expert, or organization conducting/delivering each session.
+   - If a speaker/trainer is identified in the agenda for that session:
+     ALWAYS include who delivered or conducted it in the question (e.g. "...delivered by Mr. Samrat Kishor (NeGD)" or "...conducted by Dr. Rajat Sharma (NPC)").
+   - If NO speaker/trainer is mentioned in the agenda for a session:
+     Do NOT invent a person's name; omit the speaker clause naturally (e.g. "How would you rate the overall delivery and usefulness of the session \\"[Session Title]\\"?").
 
-8. Avoid generic questions such as:
-   "How satisfied were you with the session?"
-
-   Instead, ask about the actual learning/content of that session.
+8. QUESTION PHRASING & STYLE MATCHING:
+   - If a sample/example feedback form is provided below, you MUST STRICTLY FOLLOW its exact question phrasing formula, sentence structure, and tone for each session question.
+   - If no sample feedback form is provided, use the standard professional template:
+     "How would you rate the overall delivery and usefulness of the session \\"{'{session_title}'}\\" delivered by {'{speaker_name}'} ({'{speaker_org}'})?"
+     (or "How would you rate the overall delivery and usefulness of the session \\"{'{session_title}'}\\"?" if no speaker is listed in the agenda).
+   - Do NOT generate questions focused only on granular sub-topics (e.g. specific tool functions or syllabus points) unless the sample explicitly uses that style. Focus each session question on the delivery, usefulness, and learning of that session.
 
 9. Every session question must be:
    Multiple Choice
@@ -806,7 +826,7 @@ Use this JSON structure:
             "session_no": "1",
             "session": "Session title",
             "category": "Session Feedback",
-            "question": "Specific session-based feedback question",
+            "question": "How would you rate the overall delivery and usefulness of the session \\"Cyber Security Fundamentals\\" delivered by Mr. Samrat Kishor (NeGD)?",
             "question_type": "Multiple Choice",
             "options": [
                 "Excellent",
@@ -894,6 +914,15 @@ def normalize_questions(ai_questions):
 
         if not question_text:
             continue
+
+        # Strip accidental duplicate numbering like "Q1. ", "Q2: ", "1. " from model
+        clean_question = re.sub(
+            r"^(?:Q\d+[\.:\s\-]+|\d+[\.:\s\-]+)",
+            "",
+            question_text
+        ).strip()
+        if clean_question:
+            question_text = clean_question
 
         lower_question = question_text.lower()
 
@@ -2041,8 +2070,15 @@ if st.session_state.generated:
 
                         st.markdown(
                             f"""
+                            <div style="background: var(--asg-pill-curr-bg); border: 1px solid var(--asg-pill-curr-border); border-radius: 12px; padding: 18px; margin-top: 10px;">
                             <div style="background: var(--asg-pill-curr-bg); border: 1px solid var(--asg-pill-curr-border); border-radius: 12px; padding: 20px; margin-top: 12px;">
                                 <h3 style="margin-top: 0; color: var(--asg-text-primary);">✅ Your Google Form is Live!</h3>
+                                <p style="color: var(--asg-text-secondary); margin-bottom: 14px;">The form has been published to your Google Drive.</p>
+                                <a href="https://docs.google.com/forms/d/{form_id}/edit" target="_blank" style="display: inline-block; background: #7C3AED; color: #FFFFFF; font-weight: 600; padding: 10px 20px; border-radius: 10px; text-decoration: none; margin-bottom: 12px;">
+                                    ↗️ Open in Google Forms
+                                </a>
+                                <div style="font-size: 0.85rem; color: var(--asg-text-muted); margin-top: 8px;">
+                                    Form ID: <code>{form_id}</code>
                                 <p style="color: var(--asg-text-secondary); margin-bottom: 16px;">The form has been published to your Google Drive and is ready for participants.</p>
                                 <div style="display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 16px;">
                                     <a href="{view_url}" target="_blank" style="display: inline-block; background: #2563EB; color: #FFFFFF; font-weight: 600; padding: 10px 20px; border-radius: 10px; text-decoration: none;">

@@ -1181,9 +1181,7 @@ def get_google_oauth_component():
         "https://oauth2.googleapis.com/token"
     )
 
-    revoke_token_url = (
-        "https://oauth2.googleapis.com/revoke"
-    )
+    revoke_token_url = None
 
     return OAuth2Component(
         client_id,
@@ -1935,13 +1933,16 @@ if st.session_state.generated:
                     "Connect your Google account to authorize automatic Google Form generation."
                 )
 
+                auth_secrets = st.secrets.get("auth", {})
+                redirect_uri = auth_secrets.get("redirect_uri") or (
+                    "http://localhost:8501/"
+                    "component/"
+                    "streamlit_oauth.authorize_button"
+                )
+
                 result = oauth2.authorize_button(
                     name="🔗 Connect Google Account",
-                    redirect_uri=(
-                        "http://localhost:8501/"
-                        "component/"
-                        "streamlit_oauth.authorize_button"
-                    ),
+                    redirect_uri=redirect_uri,
                     scope=(
                         "openid email profile "
                         f"{FORMS_SCOPE}"

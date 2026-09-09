@@ -2036,16 +2036,25 @@ if st.session_state.generated:
                             "🎉 Google Form created successfully!"
                         )
 
+                        view_url = f"https://docs.google.com/forms/d/{form_id}/viewform"
+                        edit_url = f"https://docs.google.com/forms/d/{form_id}/edit"
+
                         st.markdown(
                             f"""
-                            <div style="background: var(--asg-pill-curr-bg); border: 1px solid var(--asg-pill-curr-border); border-radius: 12px; padding: 18px; margin-top: 10px;">
+                            <div style="background: var(--asg-pill-curr-bg); border: 1px solid var(--asg-pill-curr-border); border-radius: 12px; padding: 20px; margin-top: 12px;">
                                 <h3 style="margin-top: 0; color: var(--asg-text-primary);">✅ Your Google Form is Live!</h3>
-                                <p style="color: var(--asg-text-secondary); margin-bottom: 14px;">The form has been published to your Google Drive.</p>
-                                <a href="https://docs.google.com/forms/d/{form_id}/edit" target="_blank" style="display: inline-block; background: #7C3AED; color: #FFFFFF; font-weight: 600; padding: 10px 20px; border-radius: 10px; text-decoration: none; margin-bottom: 12px;">
-                                    ↗️ Open in Google Forms
-                                </a>
-                                <div style="font-size: 0.85rem; color: var(--asg-text-muted); margin-top: 8px;">
-                                    Form ID: <code>{form_id}</code>
+                                <p style="color: var(--asg-text-secondary); margin-bottom: 16px;">The form has been published to your Google Drive and is ready for participants.</p>
+                                <div style="display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 16px;">
+                                    <a href="{view_url}" target="_blank" style="display: inline-block; background: #2563EB; color: #FFFFFF; font-weight: 600; padding: 10px 20px; border-radius: 10px; text-decoration: none;">
+                                        📋 Open Survey (Fill Form)
+                                    </a>
+                                    <a href="{edit_url}" target="_blank" style="display: inline-block; background: #7C3AED; color: #FFFFFF; font-weight: 600; padding: 10px 20px; border-radius: 10px; text-decoration: none;">
+                                        ✏️ Edit Form (Questions & Settings)
+                                    </a>
+                                </div>
+                                <div style="font-size: 0.85rem; color: var(--asg-text-muted);">
+                                    <b>Direct Link for Participants:</b><br/>
+                                    <code>{view_url}</code>
                                 </div>
                             </div>
                             """,

@@ -1956,6 +1956,16 @@ if st.session_state.generated:
                     use_container_width=True
                 )
 
+                with st.expander("ℹ️ Connection help & Redirect URI details", expanded=False):
+                    st.markdown(
+                        f"""
+                        **Active Redirect URI sent to Google:**  
+                        `{redirect_uri}`
+
+                        > If you see **Google Error 400: redirect_uri_mismatch**, copy the exact URL above and add it to your [Google Cloud Console](https://console.cloud.google.com/apis/credentials) under **OAuth 2.0 Client IDs > Authorized redirect URIs**.
+                        """
+                    )
+
                 if result and "token" in result:
 
                     st.session_state.google_form_token = (
